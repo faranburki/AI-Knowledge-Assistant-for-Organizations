@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DocuMind AI — Query History</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ── Page Loader ───────────────────────────── -->
+  <div class="page-loader" id="pageLoader">
+    <div class="loader-dot"></div>
+    <div class="loader-dot"></div>
+    <div class="loader-dot"></div>
+  </div>
+
+  <!-- ── Navbar ────────────────────────────────── -->
+  <nav class="app-navbar">
+    <a href="chat.html" class="nav-brand">
+      <div class="nav-logo-mark">D</div>
+      DocuMind AI
+    </a>
+    <ul class="nav-links">
+      <li><a href="chat.html">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:5px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Chat
+      </a></li>
+      <li><a href="upload.html">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload
+      </a></li>
+      <li><a href="history.html" class="active">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:5px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History
+      </a></li>
+      <li class="nav-logout"><a href="index.html">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:5px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
+      </a></li>
+    </ul>
+  </nav>
+
+  <!-- ── Page Content ───────────────────────────── -->
+  <div class="page-content">
+
+    <!-- Page header -->
+    <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2>Query History</h2>
+        <p>All questions you've asked the assistant, organized by date and category.</p>
+      </div>
+      <!-- Filter + search controls -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="searchInput" class="form-input" placeholder="Search queries…" style="width:220px;padding:9px 14px;font-size:.85rem;" />
+        <select id="categoryFilter" class="form-input" style="width:150px;padding:9px 14px;font-size:.85rem;cursor:pointer;">
+          <option value="">All categories</option>
+          <option value="Hostel">Hostel</option>
+          <option value="Finance">Finance</option>
+          <option value="Academic">Academic</option>
+          <option value="Library">Library</option>
+          <option value="IT">IT</option>
+          <option value="Health">Health</option>
+        </select>
+        <button class="btn-secondary-custom" id="exportBtn" style="padding:9px 14px;font-size:.85rem;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div id="statsRow" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;"></div>
+
+    <!-- Table card -->
+    <div class="card-custom">
+      <div style="padding:18px 20px 0;display:flex;align-items:center;justify-content:space-between;">
+        <h5 style="font-size:1rem;margin:0;">Recent Queries</h5>
+        <span id="rowCount" style="font-size:.78rem;color:var(--text-muted);"></span>
+      </div>
+      <div style="overflow-x:auto;margin-top:8px;">
+        <table class="table-custom" id="historyTable">
+          <thead>
+            <tr>
+              <th style="width:40px;">#</th>
+              <th>Query</th>
+              <th>Category</th>
+              <th>Date</th>
+              <th>Response time</th>
+              <th>Satisfaction</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);">
+        <span style="font-size:.8rem;color:var(--text-muted);" id="pageInfo"></span>
+        <div style="display:flex;gap:6px;" id="pageButtons"></div>
+      </div>
+    </div>
+
+  </div><!-- /page-content -->
+
+  <!-- Toast container -->
+  <div id="toastContainer"></div>
+
+  <script src="js/history.js"></script>
+</body>
+</html>

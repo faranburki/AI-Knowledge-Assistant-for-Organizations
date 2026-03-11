@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DocuMind AI — Login</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ── Page Loader ───────────────────────────── -->
+  <div class="page-loader" id="pageLoader">
+    <div class="loader-dot"></div>
+    <div class="loader-dot"></div>
+    <div class="loader-dot"></div>
+  </div>
+
+  <!-- ── Login Wrapper ─────────────────────────── -->
+  <main class="login-page">
+
+    <div class="login-card">
+
+      <!-- Brand mark -->
+      <div class="login-logo">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="9" y1="13" x2="15" y2="13"/>
+          <line x1="9" y1="17" x2="15" y2="17"/>
+          <line x1="9" y1="9" x2="11" y2="9"/>
+        </svg>
+      </div>
+
+      <h1>Welcome back</h1>
+      <p class="subtitle">Sign in to your DocuMind workspace</p>
+
+      <!-- Login Form -->
+      <form id="loginForm" novalidate>
+
+        <div class="form-group">
+          <label class="form-label" for="orgName">Organization</label>
+          <input class="form-input" type="text" id="orgName" placeholder="e.g. Acme University" autocomplete="organization" />
+          <div class="invalid-msg" id="orgError" style="color:#ef4444;font-size:.78rem;margin-top:4px;display:none;">
+            Organization name is required.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email address</label>
+          <input class="form-input" type="email" id="email" placeholder="you@yourorg.edu" autocomplete="email" />
+          <div class="invalid-msg" id="emailError" style="color:#ef4444;font-size:.78rem;margin-top:4px;display:none;">
+            Please enter a valid email.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div style="position:relative;">
+            <input class="form-input" type="password" id="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:42px;" />
+            <!-- Toggle visibility -->
+            <button type="button" id="togglePwd" tabindex="-1"
+              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0;">
+              <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="invalid-msg" id="pwdError" style="color:#ef4444;font-size:.78rem;margin-top:4px;display:none;">
+            Password must be at least 6 characters.
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;cursor:pointer;">
+            <input type="checkbox" id="rememberMe" style="accent-color:var(--primary);width:14px;height:14px;" />
+            Remember me
+          </label>
+          <a href="#" style="font-size:.82rem;color:var(--primary);text-decoration:none;font-weight:500;">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="btn-primary-custom" id="loginBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+          Sign in to workspace
+        </button>
+
+      </form>
+
+      <!-- Divider -->
+      <div style="display:flex;align-items:center;gap:12px;margin:24px 0;">
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-size:.78rem;color:var(--text-muted);">or continue with</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
+
+      <!-- SSO button (decorative) -->
+      <button class="btn-secondary-custom" style="width:100%;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="11" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        Single Sign-On (SSO)
+      </button>
+
+      <p style="text-align:center;font-size:.8rem;color:var(--text-muted);margin-top:24px;">
+        Don't have an account? <a href="#" style="color:var(--primary);font-weight:600;text-decoration:none;">Contact admin</a>
+      </p>
+
+    </div><!-- /login-card -->
+  </main>
+
+  <script src="js/login.js"></script>
+</body>
+</html>
