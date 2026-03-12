@@ -1,4 +1,4 @@
-Here is the raw Markdown. Just click the **Copy** icon in the top right corner of the box below, and paste it directly into your `README.md` file!
+Here is the raw Markdown. Just click the **Copy** icon in the top right corner of the box below, and paste it directly into your `README.md` file.
 
 ```markdown
 # DocQuery
@@ -39,11 +39,8 @@ source venv/bin/activate
 ```
 
 
-
-
 5. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 
 ```
-
