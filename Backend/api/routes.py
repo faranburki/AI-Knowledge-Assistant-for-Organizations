@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import datetime
 from typing import List
-from Backend.Database.db import documents_collection, text_chunks_collection
+from Backend.Database.mongodb import mongodb
 from Backend.Services.text_processor import extract_text, split_text
 from Backend.Services.file_utils import save_file
 
@@ -39,7 +39,7 @@ async def upload_doc(
     # Step 4 : Save chunks
     # Optionally you can add embedding generation here.
     for idx, chunk_text in enumerate(chunks, start=1):
-        text_chunks_collection.insert_one({
+        await mongodb.db.text_chunks.insert_one({
             "document_id": doc_id,
             "chunk_index": idx,
             "text": chunk_text,
@@ -65,7 +65,7 @@ async def upload_doc(
         "tags": tags,
         "last_updated": now_utc
     }
-    documents_collection.insert_one(doc_meta)
+    await mongodb.db.documents.insert_one(doc_meta)
 
     return {
         "message": "Document uploaded and metadata stored",

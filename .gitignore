@@ -5,3 +5,7 @@ __pycache__/
 .DS_Store
 node_modules
 data/
+*.joblib
+*.pkl
+.DS_Store
+credentials.txt
