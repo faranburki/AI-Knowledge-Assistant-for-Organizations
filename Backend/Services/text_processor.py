@@ -144,3 +144,26 @@ def extract_text(file_path):
         raise ValueError(f"Unsupported file format: {ext}")
 
     return text
+
+
+def split_text(text, chunk_size=500, overlap=50):
+    """Split text into overlapping chunks for embedding and RAG."""
+    if not text or not text.strip():
+        return []
+
+    words = text.split()
+    chunks = []
+    start = 0
+
+    while start < len(words):
+        end = min(start + chunk_size, len(words))
+        chunk = " ".join(words[start:end]).strip()
+        if chunk:
+            chunks.append(chunk)
+        if end >= len(words):
+            break
+        start = end - overlap
+        if start < 0:
+            start = 0
+
+    return chunks

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Request
 import os
 import uuid
 from datetime import datetime
@@ -6,6 +6,7 @@ from typing import List
 from Backend.Database.mongodb import mongodb
 from Backend.Services.text_processor import extract_text, split_text
 from Backend.Services.file_utils import save_file
+from Backend.Services.embedding_service import save_embeddings_to_qdrant
 
 router = APIRouter()
 
@@ -15,6 +16,7 @@ def root():
 
 @router.post("/upload-doc")
 async def upload_doc(
+    request: Request,
     file: UploadFile = File(...),
     organization_id: str = "",
     title: str = "",
@@ -37,7 +39,6 @@ async def upload_doc(
     chunk_count = len(chunks)
 
     # Step 4 : Save chunks
-    # Optionally you can add embedding generation here.
     for idx, chunk_text in enumerate(chunks, start=1):
         await mongodb.db.text_chunks.insert_one({
             "document_id": doc_id,
@@ -46,7 +47,20 @@ async def upload_doc(
             "created_at": datetime.utcnow().isoformat() + "Z"
         })
 
-    # Step 5 : Insert metadata according to desired schema
+    # Step 5 : Create embeddings in Qdrant
+    await save_embeddings_to_qdrant(
+        chunks=chunks,
+        metadata={
+            "document_id": doc_id,
+            "organization_id": organization_id or "org_unknown",
+            "source_name": original_name,
+            "file_type": file.filename.split(".")[-1].lower(),
+            "upload_user_id": upload_user_id or "user_unknown"
+        },
+        model=request.app.state.embedding_model
+    )
+
+    # Step 6 : Insert metadata according to desired schema
     file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
     
     now_utc = datetime.utcnow().isoformat() + "Z"

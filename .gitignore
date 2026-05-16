@@ -9,3 +9,5 @@ data/
 *.pkl
 .DS_Store
 credentials.txt
+analyze_checklist.py
+AI_Knowledge_Assistant_Master_Build_Guide.pdf
