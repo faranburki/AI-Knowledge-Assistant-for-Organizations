@@ -1,6 +1,9 @@
+import logging
 from typing import Dict, List
 from qdrant_client.http.models import PointStruct
 from Backend.Database.qdrant import COLLECTION_NAME, client
+
+logger = logging.getLogger(__name__)
 
 
 def generate_embeddings(chunks: List[str], model) -> List[List[float]]:
@@ -8,7 +11,12 @@ def generate_embeddings(chunks: List[str], model) -> List[List[float]]:
     if not chunks:
         return []
 
-    embeddings = model.encode(chunks, show_progress_bar=False)
+    try:
+        embeddings = model.encode(chunks, show_progress_bar=False)
+    except Exception as exc:
+        logger.exception("Embedding model failed to encode chunks")
+        raise ValueError("Failed to generate embeddings for the uploaded document.") from exc
+
     if hasattr(embeddings, "tolist"):
         embeddings = embeddings.tolist()
 
@@ -59,8 +67,12 @@ async def save_embeddings_to_qdrant(
     embeddings = generate_embeddings(chunks, model)
     points = build_qdrant_points(chunks, embeddings, metadata)
 
-    for start in range(0, len(points), batch_size):
-        batch_points = points[start : start + batch_size]
-        client.upsert(collection_name=COLLECTION_NAME, points=batch_points)
+    try:
+        for start in range(0, len(points), batch_size):
+            batch_points = points[start : start + batch_size]
+            client.upsert(collection_name=COLLECTION_NAME, points=batch_points)
+    except Exception as exc:
+        logger.exception("Failed to upsert embeddings into Qdrant")
+        raise ValueError("Unable to save embeddings to the vector store.") from exc
 
     return len(points)

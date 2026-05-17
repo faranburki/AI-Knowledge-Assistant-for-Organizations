@@ -1,9 +1,13 @@
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from Backend.api.routes import router
 from Backend.Database.mongodb import connect_to_mongo, close_mongo_connection
@@ -11,11 +15,31 @@ from Backend.Database.qdrant import connect_to_qdrant
 
 load_dotenv()
 
-RAW_DIR="Backend/Database/raw"
-PROCESSED_DIR="Backend/Database/processed"
+logger = logging.getLogger(__name__)
+
+RAW_DIR = "Backend/Database/raw"
+PROCESSED_DIR = "Backend/Database/processed"
 
 os.makedirs(RAW_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    logger.warning("HTTPException: %s", exc.detail)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning("Validation error: %s", exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception occurred")
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 @asynccontextmanager
