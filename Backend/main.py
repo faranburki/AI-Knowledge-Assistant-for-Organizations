@@ -9,11 +9,18 @@ from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from Backend.api.routes import router
+from Backend.api.routes import router as documents_router
+from Backend.routers import auth, organizations, query
 from Backend.Database.mongodb import connect_to_mongo, close_mongo_connection
 from Backend.Database.qdrant import connect_to_qdrant
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +31,52 @@ os.makedirs(RAW_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown events."""
+    # Startup
+    logger.info("Loading embedding model...")
+    try:
+        app.state.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        logger.info("Embedding model loaded successfully")
+    except Exception as e:
+        logger.error("Failed to load embedding model: %s", str(e))
+        raise
+    
+    logger.info("Connecting to MongoDB...")
+    await connect_to_mongo()
+    
+    logger.info("Connecting to Qdrant...")
+    await connect_to_qdrant()
+    
+    logger.info("Application startup complete")
+    yield
+    
+    # Shutdown
+    logger.info("Closing MongoDB connection...")
+    await close_mongo_connection()
+    logger.info("Application shutdown complete")
+
+
+# Create FastAPI app with lifespan
+app = FastAPI(
+    title="AI Knowledge Assistant API",
+    description="RAG-based knowledge assistant with multi-tenancy support",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Exception handlers
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     logger.warning("HTTPException: %s", exc.detail)
@@ -42,43 +95,17 @@ async def generic_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    print("Loading embedding model...")
-    app.state.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-    
-    await connect_to_mongo()
-    await connect_to_qdrant()
-    
-    print("Application startup complete")
-    yield
-    
-    # Shutdown
-    await close_mongo_connection()
-    print("Application shutdown complete")
-
-
-app = FastAPI(lifespan=lifespan)
-
-# CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Health check endpoint
-@app.get("/health")
+@app.get("/health", tags=["health"])
 def health_check():
+    """Health check endpoint."""
     return {"status": "ok"}
 
-# Router registration with prefixes
-app.include_router(router, prefix="/documents")
 
-# TODO: Add other routers when created
-# app.include_router(auth_router, prefix="/auth")
-# app.include_router(orgs_router, prefix="/orgs")
-# app.include_router(query_router, prefix="/query")
+# Router registration with prefixes
+app.include_router(documents_router, prefix="/documents", tags=["documents"])
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(organizations.router, prefix="/orgs", tags=["organizations"])
+app.include_router(query.router, prefix="/query", tags=["query"])
+
+logger.info("All routers registered")

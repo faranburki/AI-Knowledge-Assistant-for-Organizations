@@ -12,9 +12,8 @@ from pdf2image import convert_from_path
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
-pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Users\pc\Downloads\tesseract-ocr-w64-setup-5.5.0.20241111.exe"
-)
+_tesseract_cmd = os.getenv("TESSERACT_CMD", "tesseract")
+pytesseract.pytesseract.tesseract_cmd = _tesseract_cmd
 
 logger = logging.getLogger(__name__)
 

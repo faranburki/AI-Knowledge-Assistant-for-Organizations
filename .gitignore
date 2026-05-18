@@ -1,14 +1,48 @@
+# ==========================================
+# AI Knowledge Assistant - Git Ignore
+# ==========================================
+
+# Virtual Environments
 venv/
+.venv/
+ENV/
+env/
+
+# Python Cache & Compiled Files
 __pycache__/
+**/__pycache__/
 *.pyc
-.env
-.DS_Store
-node_modules
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Datasets, Cache & Large Documents
 data/
-*.joblib
-*.pkl
-.DS_Store
-credentials.txt
-analyze_checklist.py
+Data/
+pdf_content.txt
 AI_Knowledge_Assistant_Master_Build_Guide.pdf
 Backend/Database/raw/
+
+# Model Weights & Compiled Binaries
+*.pkl
+*.joblib
+*.h5
+*.onnx
+Models/*.pkl
+Backend/ml/*.pkl
+
+# Environment Variables & Secrets
+.env
+.env.*
+credentials.txt
+
+# Editor & System Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Jupyter Notebooks Checkpoints
+.ipynb_checkpoints/
