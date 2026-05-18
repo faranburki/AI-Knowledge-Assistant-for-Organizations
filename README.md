@@ -33,42 +33,70 @@ An enterprise-grade, multi-tenant **AI-Powered Knowledge Assistant & Document Q&
 
 ---
 
-## Getting Started and Installation
+## Setup and Running the Project in a New Folder
 
-### 1. Prerequisites
-Ensure you have the following installed on your system:
-* **Python 3.10+**
-* **MongoDB** instance (Local or Atlas cloud URI)
-* **Qdrant** instance (Local docker or Qdrant Cloud cluster)
-* **Groq API Key** (for fast language model generation)
+Follow this step-by-step guide to clone, install, configure, and launch this project in a completely fresh directory.
 
-### 2. Installation Steps
+### 1. Clone the Repository
+Open your terminal/command prompt, navigate to the directory where you want the project to live, and run:
+```bash
+git clone https://github.com/faranburki/AI-Knowledge-Assistant-for-Organizations.git
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/faranburki/AI-Knowledge-Assistant-for-Organizations.git
-   cd AI-Knowledge-Assistant-for-Organizations
-   ```
+Now, navigate into the fresh project folder:
+```bash
+cd AI-Knowledge-Assistant-for-Organizations
+```
 
-2. **Create and Activate a Virtual Environment:**
-   * **Windows:**
-     ```powershell
-     python -m venv venv
-     .\venv\Scripts\Activate.ps1
-     ```
-   * **Linux/Mac:**
-     ```bash
-     python -m venv venv
-     source venv/bin/activate
-     ```
+### 2. Create a Python Virtual Environment
+Keep dependencies isolated inside a clean virtual environment:
+* **Windows:**
+  ```powershell
+  python -m venv venv
+  ```
+* **Linux/Mac:**
+  ```bash
+  python3 -m venv venv
+  ```
 
-3. **Install Dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 3. Activate the Virtual Environment
+Activate the environment to bind your Python path:
+* **Windows (PowerShell):**
+  ```powershell
+  .\venv\Scripts\Activate.ps1
+  ```
+* **Windows (Command Prompt):**
+  ```cmd
+  .\venv\Scripts\activate.bat
+  ```
+* **Linux/Mac:**
+  ```bash
+  source venv/bin/activate
+  ```
 
-### 3. Environment Variables Configuration
-Create a `.env` file in the root directory and add the following parameters:
+### 4. Install Project Dependencies
+With the virtual environment active, run the following command to download and install all backend dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+### 5. Setup Local Services (Databases)
+Ensure your database servers are started locally:
+* **MongoDB**: Standard port `27017` (Runs in the background if installed locally as a service or via Docker).
+* **Qdrant Vector DB**: Standard port `6333`. (Can be launched locally via Docker: `docker run -p 6333:6333 -p 6334:6334 -v qdrant_storage:/qdrant/storage qdrant/qdrant`).
+
+### 6. Create the Configuration Environment (.env)
+Create a new file named `.env` in the root of the project folder:
+* **Windows (PowerShell command):**
+  ```powershell
+  New-Item -Path .env -ItemType File
+  ```
+* **Linux/Mac/Git Bash command:**
+  ```bash
+  touch .env
+  ```
+
+Open the `.env` file in your text editor and add the following config keys:
 ```env
 MONGODB_URI=mongodb://localhost:27017/docquery
 QDRANT_HOST=localhost
@@ -76,34 +104,20 @@ QDRANT_PORT=6333
 GROQ_API_KEY=your_groq_api_key_here
 JWT_SECRET=your_jwt_signature_key_here
 ```
+*(Replace `your_groq_api_key_here` with a valid API key from the Groq console).*
 
-### 4. Running the Development Server
-Launch the FastAPI backend:
+### 7. Run the Backend Server
+Launch the FastAPI development backend:
 ```bash
 uvicorn Backend.main:app --reload
 ```
-The interactive Swagger API documentation will be available at: `http://localhost:8000/docs`
+Once running, you can access the automatic interactive API documentation at: `http://localhost:8000/docs`
 
----
-
-## Training and Updating the Intent Classifier
-
-We include a custom, Windows-compatible ML pipeline script (`train_classifier.py`) that merges, cleans, and trains an intent classifier on custom datasets.
-
-### How to Train on Custom Datasets:
-1. Put your custom query CSV files inside a folder named `Data/` (e.g. `Data/academic.csv`, `Data/finance.csv`, etc.).
-2. Ensure each CSV has:
-   * A column containing queries (e.g., headerless or named `query`/`question`).
-   * A column containing categories (e.g., headerless or named `category`/`label`).
-3. Run the training command:
-   ```bash
-   python train_classifier.py
-   ```
-4. **Automated Features:**
-   * **Header Detection**: Auto-detects if files are headerless and prevents losing data rows.
-   * **Cleaning**: Strips white spaces, drops nulls, and removes duplicates.
-   * **Evaluation Report**: Conducts an 80/20 split and shows a complete Precision/Recall report.
-   * **Hot Reload**: Automatically compiles and updates the active `Backend/ml/model.pkl` loaded by the server.
+### 8. Open the User Interface (Frontend)
+DocQuery is served via a fully responsive single-page web app layout.
+To open the frontend:
+* Simply double-click and open the file `Frontend/index.html` directly in any web browser (Chrome, Edge, Firefox, or Safari).
+* Alternatively, if using VS Code, you can right-click `Frontend/index.html` and select **Open with Live Server**.
 
 ---
 
