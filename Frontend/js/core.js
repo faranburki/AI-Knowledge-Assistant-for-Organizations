@@ -1,5 +1,56 @@
 /* ═══ Core App — Navigation, Sidebar, Toast, Command Palette ═══ */
 
+// ── WebSocket Live-Reload Interceptor (Frontend-Only Dev-Server Bypass) ─────
+(function() {
+  const OriginalWebSocket = window.WebSocket;
+  window.WebSocket = function(url, protocols) {
+    const ws = new OriginalWebSocket(url, protocols);
+    const originalAdd = ws.addEventListener;
+    ws.addEventListener = function(type, listener, options) {
+      if (type === 'message') {
+        const originalListener = listener;
+        listener = function(event) {
+          if (event.data === 'reload' || (typeof event.data === 'string' && event.data.includes('reload'))) {
+            const isUploading = document.getElementById('uploadProgress') && 
+                                !document.getElementById('uploadProgress').classList.contains('hidden') && 
+                                document.getElementById('uploadProgress').innerHTML !== '';
+            if (isUploading) {
+              console.warn('[Antigravity] Blocked live-server reload during active upload ingestion.');
+              return;
+            }
+          }
+          return originalListener.apply(this, arguments);
+        };
+      }
+      return originalAdd.call(this, type, listener, options);
+    };
+
+    let userHandler = null;
+    Object.defineProperty(ws, 'onmessage', {
+      get() { return userHandler; },
+      set(val) {
+        userHandler = val;
+        ws.removeEventListener('message', ws._customOnMessage);
+        ws._customOnMessage = function(event) {
+          if (event.data === 'reload' || (typeof event.data === 'string' && event.data.includes('reload'))) {
+            const isUploading = document.getElementById('uploadProgress') && 
+                                !document.getElementById('uploadProgress').classList.contains('hidden') && 
+                                document.getElementById('uploadProgress').innerHTML !== '';
+            if (isUploading) {
+              console.warn('[Antigravity] Blocked live-server reload during active upload ingestion.');
+              return;
+            }
+          }
+          if (userHandler) userHandler.call(ws, event);
+        };
+        ws.addEventListener('message', ws._customOnMessage);
+      }
+    });
+    return ws;
+  };
+  window.WebSocket.prototype = OriginalWebSocket.prototype;
+})();
+
 if (!API.isLoggedIn()) window.location.href = 'index.html';
 
 // ── State ───────────────────────────────────────────────────
