@@ -31,6 +31,7 @@ Backend/Database/raw/
 *.onnx
 Models/*.pkl
 Backend/ml/*.pkl
+!Backend/ml/model.pkl
 
 # Environment Variables & Secrets
 .env
