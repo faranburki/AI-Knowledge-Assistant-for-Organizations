@@ -159,67 +159,56 @@ async function performUpload() {
   const prog = document.getElementById('uploadProgress');
   const stages = ['Upload', 'Extract Text', 'Chunking', 'Vector Embedding', 'Indexing'];
   
-  // Create beautiful progress visualizer
-  prog.innerHTML += `<div style="margin-top:24px;border:1px solid var(--border-primary);border-radius:12px;padding:20px;background:#fff">
+  // Clear any existing progress and show container
+  prog.classList.remove('hidden');
+  prog.innerHTML = '';
+
+  // Create beautiful progress visualizer with a dynamic filling progress line
+  prog.innerHTML += `<div style="margin-top:24px;border:1px solid var(--border-primary);border-radius:12px;padding:20px;background:#fff;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05)">
     <div style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px">Pipeline Status</div>
     <div style="display:flex;justify-content:space-between;position:relative" id="pipelineStages">
       <div style="position:absolute;top:12px;left:20px;right:20px;height:2px;background:var(--bg-tertiary);z-index:0"></div>
+      <div id="progressLine" style="position:absolute;top:12px;left:20px;width:0%;height:2px;background:var(--success);z-index:0;transition:width 0.8s cubic-bezier(0.4, 0, 0.2, 1)"></div>
       ${stages.map((s, i) => `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;z-index:1;width:60px" class="pipeline-stage${i===0?' active':''}" id="stage-${i}">
-        <div class="stage-icon" style="width:24px;height:24px;border-radius:50%;background:${i===0?'var(--accent)':'var(--bg-tertiary)'};border:4px solid #fff;display:flex;align-items:center;justify-content:center;transition:all 0.3s;box-shadow:0 0 0 1px ${i===0?'var(--accent)':'var(--border-primary)'}">
-          ${i===0 ? '<div style="width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.5s infinite"></div>' : ''}
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;z-index:1;width:60px" class="pipeline-stage" id="stage-${i}">
+        <div class="stage-icon" style="width:24px;height:24px;border-radius:50%;background:var(--bg-tertiary);border:4px solid #fff;display:flex;align-items:center;justify-content:center;transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1);box-shadow:0 0 0 1px var(--border-primary)">
         </div>
-        <span style="font-size:10px;font-weight:600;color:${i===0?'var(--text-primary)':'var(--text-tertiary)'};text-align:center;transition:all 0.3s">${s}</span>
+        <span style="font-size:10px;font-weight:600;color:var(--text-tertiary);text-align:center;transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1)">${s}</span>
       </div>`).join('')}
     </div>
   </div>`;
 
-  // Simulate stage progression beautifully
-  const animateStages = () => {
-    let idx = 0;
-    return setInterval(() => {
-      if (idx > 0) {
-        const prev = document.getElementById('stage-' + (idx - 1));
-        if (prev) {
-          prev.querySelector('.stage-icon').style.background = 'var(--success)';
-          prev.querySelector('.stage-icon').style.boxShadow = '0 0 0 1px var(--success)';
-          prev.querySelector('.stage-icon').innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-        }
-      }
-      if (idx < stages.length) {
-        const curr = document.getElementById('stage-' + idx);
-        if (curr) {
-          curr.querySelector('.stage-icon').style.background = 'var(--accent)';
-          curr.querySelector('.stage-icon').style.boxShadow = '0 0 0 1px var(--accent)';
-          curr.querySelector('.stage-icon').innerHTML = '<div style="width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.5s infinite"></div>';
-          curr.querySelector('span').style.color = 'var(--text-primary)';
-        }
-      }
-      idx++;
-      if (idx > stages.length) clearInterval(animateStages);
-    }, 800);
+  // UI state updater for individual stages
+  const updateStageUI = (stageIdx, state) => {
+    const el = document.getElementById('stage-' + stageIdx);
+    if (!el) return;
+    const icon = el.querySelector('.stage-icon');
+    const label = el.querySelector('span');
+    if (state === 'pending') {
+      icon.style.background = 'var(--bg-tertiary)';
+      icon.style.boxShadow = '0 0 0 1px var(--border-primary)';
+      icon.style.transform = 'scale(1.0)';
+      icon.innerHTML = '';
+      label.style.color = 'var(--text-tertiary)';
+      label.style.fontWeight = '600';
+    } else if (state === 'active') {
+      icon.style.background = 'var(--accent)';
+      icon.style.boxShadow = '0 0 0 1px var(--accent)';
+      icon.style.transform = 'scale(1.15)';
+      icon.innerHTML = '<div style="width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.5s infinite"></div>';
+      label.style.color = 'var(--text-primary)';
+      label.style.fontWeight = '700';
+    } else if (state === 'complete') {
+      icon.style.background = 'var(--success)';
+      icon.style.boxShadow = '0 0 0 1px var(--success)';
+      icon.style.transform = 'scale(1.0)';
+      icon.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      label.style.color = 'var(--success)';
+      label.style.fontWeight = '600';
+    }
   };
-  const timer = animateStages();
 
-  try {
-    const res = await API.uploadDocument(
-      selectedFile,
-      document.getElementById('uploadTitle').value,
-      '',
-      document.getElementById('uploadTags').value
-    );
-    clearInterval(timer);
-    
-    // Complete all stages
-    stages.forEach((_, i) => {
-      const el = document.getElementById('stage-' + i);
-      if (el) {
-        el.querySelector('.stage-icon').style.background = 'var(--success)';
-        el.querySelector('.stage-icon').style.boxShadow = '0 0 0 1px var(--success)';
-        el.querySelector('.stage-icon').innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-      }
-    });
-
+  const handleSuccess = (res) => {
     // Hide active stage animations inside the icons
     document.querySelectorAll('.stage-icon div').forEach(div => div.remove());
     
@@ -228,7 +217,7 @@ async function performUpload() {
     const footer = document.querySelector('#uploadModal .modal-footer');
     if (footer) footer.classList.add('hidden');
 
-    // Create and append the beautiful done card!
+    // Create and append the beautiful complete card
     const doneCard = document.createElement('div');
     doneCard.style.marginTop = '24px';
     doneCard.style.padding = '24px';
@@ -239,7 +228,7 @@ async function performUpload() {
     doneCard.style.flexDirection = 'column';
     doneCard.style.alignItems = 'center';
     doneCard.style.textAlign = 'center';
-    doneCard.style.animation = 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    doneCard.style.animation = 'scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
     
     doneCard.innerHTML = `
       <div style="width:56px;height:56px;border-radius:50%;background:var(--success);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 12px rgba(16,185,129,0.2);margin-bottom:16px;">
@@ -262,17 +251,83 @@ async function performUpload() {
     `;
     prog.appendChild(doneCard);
     showToast('Document successfully indexed in Knowledge Base', 'success');
-  } catch (err) {
-    clearInterval(timer);
+  };
+
+  const handleFailure = (err) => {
     showToast('Processing failed: ' + err.message, 'error');
-    const activeStage = document.querySelector('.pipeline-stage .stage-icon div');
-    if (activeStage) {
-      const parent = activeStage.parentElement;
-      parent.style.background = 'var(--error)';
-      parent.style.boxShadow = '0 0 0 1px var(--error)';
-      parent.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    const activeIcon = document.querySelector(`#stage-${currentStageIdx} .stage-icon`);
+    if (activeIcon) {
+      activeIcon.style.background = 'var(--error)';
+      activeIcon.style.boxShadow = '0 0 0 1px var(--error)';
+      activeIcon.style.transform = 'scale(1.0)';
+      activeIcon.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     }
-  }
+  };
+
+  // Set the first stage as active
+  let currentStageIdx = 0;
+  updateStageUI(0, 'active');
+
+  let uploadCompleted = false;
+  let uploadResult = null;
+  let uploadError = null;
+
+  // Smooth sequential progress interval (moves from left to right, going green)
+  const advanceStageInterval = setInterval(() => {
+    if (currentStageIdx < stages.length - 1) {
+      // Mark current stage as complete (green)
+      updateStageUI(currentStageIdx, 'complete');
+      currentStageIdx++;
+      // Activate next stage (blue pulsing)
+      updateStageUI(currentStageIdx, 'active');
+      // Extend connecting progress line
+      const percentage = (currentStageIdx / (stages.length - 1)) * 100;
+      const progressLine = document.getElementById('progressLine');
+      if (progressLine) {
+        progressLine.style.width = `${percentage}%`;
+      }
+    } else {
+      // We are at the final stage ("Indexing").
+      // Check if the API call has completed.
+      if (uploadCompleted) {
+        clearInterval(advanceStageInterval);
+        if (uploadError) {
+          handleFailure(uploadError);
+        } else {
+          updateStageUI(stages.length - 1, 'complete');
+          const progressLine = document.getElementById('progressLine');
+          if (progressLine) progressLine.style.width = '100%';
+          handleSuccess(uploadResult);
+        }
+      }
+    }
+  }, 1100); // 1.1s per stage transitions for smooth eye-catching visual pacing
+
+  // Fire off real RAG pipeline upload in parallel
+  API.uploadDocument(
+    selectedFile,
+    document.getElementById('uploadTitle').value,
+    '',
+    document.getElementById('uploadTags').value
+  ).then(res => {
+    uploadResult = res;
+    uploadCompleted = true;
+    
+    // If the progressive animation already reached the last stage, resolve instantly!
+    if (currentStageIdx === stages.length - 1) {
+      clearInterval(advanceStageInterval);
+      updateStageUI(stages.length - 1, 'complete');
+      const progressLine = document.getElementById('progressLine');
+      if (progressLine) progressLine.style.width = '100%';
+      handleSuccess(res);
+    }
+  }).catch(err => {
+    uploadError = err;
+    uploadCompleted = true;
+    clearInterval(advanceStageInterval);
+    handleFailure(err);
+  });
+
   btn.disabled = false;
   btn.textContent = 'Upload & Process File';
 }
