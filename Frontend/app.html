@@ -288,7 +288,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeUploadModal()">Cancel</button>
-      <button class="btn btn-primary" id="uploadBtn" onclick="performUpload()" disabled>Upload & process</button>
+      <button class="btn btn-primary" id="uploadBtn" onclick="event.stopPropagation(); performUpload(event)" disabled>Upload & process</button>
     </div>
   </div>
 </div>

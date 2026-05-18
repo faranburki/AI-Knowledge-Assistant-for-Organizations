@@ -149,7 +149,11 @@ function clearFile() {
   document.getElementById('fileInput').value = '';
 }
 
-async function performUpload() {
+async function performUpload(e) {
+  if (e) {
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+  }
   if (!selectedFile) return;
   const btn = document.getElementById('uploadBtn');
   btn.disabled = true;
