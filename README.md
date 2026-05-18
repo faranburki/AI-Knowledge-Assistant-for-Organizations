@@ -1,4 +1,4 @@
-# DocQuery 🚀
+# DocQuery
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn)](https://scikit-learn.org/)
@@ -10,20 +10,20 @@ An enterprise-grade, multi-tenant **AI-Powered Knowledge Assistant & Document Q&
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 | Category | Description |
 | :--- | :--- |
-| **🔒 Multi-Tenant Security** | Absolute data isolation. Users only query and search within their registered workspace/organization boundaries. |
-| **📂 Intelligent RAG Pipeline** | Dynamic PDF/document chunking, embedding generation, and vector semantic retrieval using **Qdrant DB**. |
-| **🧠 ML Query Classifier** | Real-time Logistic Regression classifier predicting intent classes (Academic, Finance, Hostel, Attendance, Library, Exams, Administration, General) to route or tag user requests. |
-| **👑 Role-Based Access Control** | Creators are automatically designated as Workspace Admins with full management powers (document upload, workspace management), while standard users enjoy clean query access. |
-| **📊 Real-Time Analytics** | Interactive dashboard presenting metrics, query trends, response latency statistics, and most frequently asked questions. |
-| **💬 Persistent Chat Histories** | Private conversation threads saved securely inside **MongoDB** for seamless continuity. |
+| **Multi-Tenant Security** | Absolute data isolation. Users only query and search within their registered workspace/organization boundaries. |
+| **Intelligent RAG Pipeline** | Dynamic PDF/document chunking, embedding generation, and vector semantic retrieval using **Qdrant DB**. |
+| **ML Query Classifier** | Real-time Logistic Regression classifier predicting intent classes (Academic, Finance, Hostel, Attendance, Library, Exams, Administration, General) to route or tag user requests. |
+| **Role-Based Access Control** | Creators are automatically designated as Workspace Admins with full management powers (document upload, workspace management), while standard users enjoy clean query access. |
+| **Real-Time Analytics** | Interactive dashboard presenting metrics, query trends, response latency statistics, and most frequently asked questions. |
+| **Persistent Chat Histories** | Private conversation threads saved securely inside **MongoDB** for seamless continuity. |
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 * **Backend Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Python)
 * **Vector Search Engine**: [Qdrant](https://qdrant.tech/)
@@ -33,7 +33,7 @@ An enterprise-grade, multi-tenant **AI-Powered Knowledge Assistant & Document Q&
 
 ---
 
-## ⚡ Getting Started & Installation
+## Getting Started and Installation
 
 ### 1. Prerequisites
 Ensure you have the following installed on your system:
@@ -86,7 +86,7 @@ The interactive Swagger API documentation will be available at: `http://localhos
 
 ---
 
-## 🧠 Training & Updating the Intent Classifier
+## Training and Updating the Intent Classifier
 
 We include a custom, Windows-compatible ML pipeline script (`train_classifier.py`) that merges, cleans, and trains an intent classifier on custom datasets.
 
@@ -107,7 +107,7 @@ We include a custom, Windows-compatible ML pipeline script (`train_classifier.py
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 ├── Backend/
@@ -126,5 +126,5 @@ We include a custom, Windows-compatible ML pipeline script (`train_classifier.py
 
 ---
 
-## 📄 License
+## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
