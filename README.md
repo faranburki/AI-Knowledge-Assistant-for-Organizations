@@ -16,6 +16,7 @@ An enterprise-grade, multi-tenant **AI-Powered Knowledge Assistant & Document Q&
 | :--- | :--- |
 | **Multi-Tenant Security** | Absolute data isolation. Users only query and search within their registered workspace/organization boundaries. |
 | **Intelligent RAG Pipeline** | Dynamic PDF/document chunking, embedding generation, and vector semantic retrieval using **Qdrant DB**. |
+| **Interactive Ingestion** | Real-time, step-by-step visual ingestion pipeline status card (Upload ➔ Extract Text ➔ Chunking ➔ Embedding ➔ Indexing) with a smooth 3s sequential progress animation. |
 | **ML Query Classifier** | Real-time Logistic Regression classifier predicting intent classes (Academic, Finance, Hostel, Attendance, Library, Exams, Administration, General) to route or tag user requests. |
 | **Role-Based Access Control** | Creators are automatically designated as Workspace Admins with full management powers (document upload, workspace management), while standard users enjoy clean query access. |
 | **Real-Time Analytics** | Interactive dashboard presenting metrics, query trends, response latency statistics, and most frequently asked questions. |
@@ -118,6 +119,8 @@ DocQuery is served via a fully responsive single-page web app layout.
 To open the frontend:
 * Simply double-click and open the file `Frontend/index.html` directly in any web browser (Chrome, Edge, Firefox, or Safari).
 * Alternatively, if using VS Code, you can right-click `Frontend/index.html` and select **Open with Live Server**.
+  > [!NOTE]
+  > **Live Server Hot-Reload Protection**: The app includes a built-in global **WebSocket Live-Reload Interceptor** that blocks automatic browser reloads triggered by the dev-server whenever files are successfully saved to `Backend/Database/raw/`. This allows the upload and embedding status animation to finish smoothly without interrupting the user experience.
 
 ---
 
