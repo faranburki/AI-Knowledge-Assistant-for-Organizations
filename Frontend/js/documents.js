@@ -155,6 +155,11 @@ async function performUpload() {
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:#fff"></div> <span>Processing...</span>';
 
+  // Immediately hide form fields and bottom modal footer to focus purely on ingestion
+  document.getElementById('uploadModalForm').classList.add('hidden');
+  const footer = document.querySelector('#uploadModal .modal-footer');
+  if (footer) footer.classList.add('hidden');
+
   // Show pipeline stages
   const prog = document.getElementById('uploadProgress');
   const stages = ['Upload', 'Extract Text', 'Chunking', 'Vector Embedding', 'Indexing'];
@@ -164,7 +169,7 @@ async function performUpload() {
   prog.innerHTML = '';
 
   // Create beautiful progress visualizer with a dynamic filling progress line
-  prog.innerHTML += `<div style="margin-top:24px;border:1px solid var(--border-primary);border-radius:12px;padding:20px;background:#fff;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05)">
+  prog.innerHTML += `<div style="margin-top:12px;border:1px solid var(--border-primary);border-radius:12px;padding:20px;background:#fff;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05)">
     <div style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px">Pipeline Status</div>
     <div style="display:flex;justify-content:space-between;position:relative" id="pipelineStages">
       <div style="position:absolute;top:12px;left:20px;right:20px;height:2px;background:var(--bg-tertiary);z-index:0"></div>
@@ -212,11 +217,6 @@ async function performUpload() {
     // Hide active stage animations inside the icons
     document.querySelectorAll('.stage-icon div').forEach(div => div.remove());
     
-    // Hide form fields and bottom modal footer
-    document.getElementById('uploadModalForm').classList.add('hidden');
-    const footer = document.querySelector('#uploadModal .modal-footer');
-    if (footer) footer.classList.add('hidden');
-
     // Create and append the beautiful complete card
     const doneCard = document.createElement('div');
     doneCard.style.marginTop = '24px';
@@ -262,6 +262,17 @@ async function performUpload() {
       activeIcon.style.transform = 'scale(1.0)';
       activeIcon.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     }
+
+    // Add Retry and Close actions beautifully
+    const errorAction = document.createElement('div');
+    errorAction.style.marginTop = '24px';
+    errorAction.style.display = 'flex';
+    errorAction.style.gap = '12px';
+    errorAction.innerHTML = `
+      <button class="btn btn-secondary" onclick="restoreUploadForm()" style="width:100%">Try Again</button>
+      <button class="btn btn-primary" onclick="closeUploadModal()" style="width:100%;background:var(--error);border-color:var(--error)">Close</button>
+    `;
+    prog.appendChild(errorAction);
   };
 
   // Set the first stage as active
@@ -301,7 +312,7 @@ async function performUpload() {
         }
       }
     }
-  }, 1100); // 1.1s per stage transitions for smooth eye-catching visual pacing
+  }, 1100); // 1.1s per stage transitions for smooth eye-catching pacing
 
   // Fire off real RAG pipeline upload in parallel
   API.uploadDocument(
@@ -327,7 +338,22 @@ async function performUpload() {
     clearInterval(advanceStageInterval);
     handleFailure(err);
   });
-
-  btn.disabled = false;
-  btn.textContent = 'Upload & Process File';
 }
+
+// Global function to restore upload form states if retry is triggered
+window.restoreUploadForm = function() {
+  document.getElementById('uploadModalForm').classList.remove('hidden');
+  const footer = document.querySelector('#uploadModal .modal-footer');
+  if (footer) footer.classList.remove('hidden');
+  
+  if (selectedFile) {
+    selectFile(selectedFile);
+  } else {
+    document.getElementById('uploadProgress').classList.add('hidden');
+    document.getElementById('uploadProgress').innerHTML = '';
+  }
+  
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = false;
+  btn.textContent = 'Upload & process';
+};
