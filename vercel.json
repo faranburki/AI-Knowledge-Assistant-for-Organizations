@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/(auth|orgs|documents|query|users|health)(.*)",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/$",
+      "destination": "/Frontend/index.html"
+    }
+  ]
+}
