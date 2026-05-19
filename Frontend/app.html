@@ -300,6 +300,13 @@
           <label for="uploadTags">Tags (optional, comma-separated)</label>
           <input type="text" id="uploadTags" class="input" placeholder="policy, academic, 2024">
         </div>
+        <div class="input-group" style="margin-top:12px">
+          <label for="uploadStatus">Visibility Status</label>
+          <select id="uploadStatus" class="input" style="height:38px;padding:0 12px;cursor:pointer">
+            <option value="private" selected>Private (Workspace members only)</option>
+            <option value="public">Public (Visible to subscribed public users)</option>
+          </select>
+        </div>
       </div>
       <div id="uploadProgress" class="upload-progress hidden"></div>
     </div>

@@ -62,14 +62,17 @@ async function loadDocuments() {
           <td><span class="badge badge-default" style="font-family:var(--font-mono)">${(d.file_type||'UNKNOWN').toUpperCase()}</span></td>
           <td style="color:var(--text-secondary);font-size:13px">${(d.file_size_mb||0).toFixed(2)} MB</td>
           <td>
-            <div style="display:inline-flex;align-items:center;gap:6px;background:${d.status==='ready'?'var(--success-muted)':d.status==='error'?'var(--error-muted)':'var(--accent-muted)'};padding:4px 10px;border-radius:99px;border:1px solid ${d.status==='ready'?'#a7f3d0':d.status==='error'?'#fecaca':'#bfdbfe'}">
-              <div style="width:6px;height:6px;border-radius:50%;background:${d.status==='ready'?'var(--success)':d.status==='error'?'var(--error)':'var(--accent)'}"></div>
-              <span style="font-size:12px;font-weight:600;color:${d.status==='ready'?'#065f46':d.status==='error'?'#991b1b':'#1e40af'}">${(d.status||'ready').charAt(0).toUpperCase() + (d.status||'ready').slice(1)}</span>
+            <div style="display:inline-flex;align-items:center;gap:6px;background:${d.status==='public'?'var(--success-muted)':'var(--bg-secondary)'};padding:4px 10px;border-radius:99px;border:1px solid ${d.status==='public'?'#a7f3d0':'var(--border-primary)'}">
+              <div style="width:6px;height:6px;border-radius:50%;background:${d.status==='public'?'var(--success)':'var(--text-tertiary)'}"></div>
+              <span style="font-size:12px;font-weight:600;color:${d.status==='public'?'#065f46':'var(--text-secondary)'}">${(d.status||'private').charAt(0).toUpperCase() + (d.status||'private').slice(1)}</span>
             </div>
           </td>
           <td style="color:var(--text-tertiary);font-size:13px">${timeAgo(d.upload_date)}</td>
           ${isAdmin ? `
           <td style="text-align:right">
+            <button class="icon-btn" onclick="toggleDocStatus('${d.document_id}', '${d.status}')" data-tooltip="Toggle Visibility" style="color:var(--text-tertiary);margin-right:12px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
             <button class="icon-btn" onclick="deleteDoc('${d.document_id}')" data-tooltip="Delete Document" style="color:var(--text-tertiary)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
@@ -100,6 +103,9 @@ function openUploadModal() {
   document.getElementById('uploadBtn').disabled = true;
   document.getElementById('uploadTitle').value = '';
   document.getElementById('uploadTags').value = '';
+  if (document.getElementById('uploadStatus')) {
+    document.getElementById('uploadStatus').value = 'private';
+  }
   document.getElementById('fileInput').value = '';
   
   // Restore form and footer visibility
@@ -312,12 +318,16 @@ function startIngestionAnimation() {
   let uploadResult = null;
   let uploadError = null;
 
+  const statusSelect = document.getElementById('uploadStatus');
+  const statusVal = statusSelect ? statusSelect.value : 'private';
+
   // Fire off real RAG pipeline upload in parallel
   API.uploadDocument(
     selectedFile,
     document.getElementById('uploadTitle').value,
     '',
-    document.getElementById('uploadTags').value
+    document.getElementById('uploadTags').value,
+    statusVal
   ).then(res => {
     uploadResult = res;
     uploadCompleted = true;
@@ -378,3 +388,14 @@ window.restoreUploadForm = function() {
   btn.disabled = false;
   btn.textContent = 'Upload & process';
 };
+
+async function toggleDocStatus(docId, currentStatus) {
+  const newStatus = currentStatus === 'public' ? 'private' : 'public';
+  try {
+    await API.updateDocumentStatus(docId, newStatus);
+    showToast(`Visibility toggled to ${newStatus}`, 'success');
+    loadDocuments();
+  } catch (err) {
+    showToast('Failed to toggle status: ' + err.message, 'error');
+  }
+}

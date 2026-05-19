@@ -127,13 +127,17 @@ const API = {
   listDocuments(limit = 50, skip = 0) {
     return this._req('GET', `/documents/list?limit=${limit}&skip=${skip}`);
   },
-  uploadDocument(file, title, description, tags) {
+  uploadDocument(file, title, description, tags, status = 'private') {
     const fd = new FormData();
     fd.append('file', file);
     if (title) fd.append('title', title);
     if (description) fd.append('description', description);
     if (tags) fd.append('tags', tags);
+    if (status) fd.append('status', status);
     return this._upload('/documents/upload', fd);
+  },
+  updateDocumentStatus(docId, status) {
+    return this._req('PATCH', `/documents/${docId}/status`, { status });
   },
   deleteDocument(docId) {
     return this._req('DELETE', `/documents/${docId}`);
