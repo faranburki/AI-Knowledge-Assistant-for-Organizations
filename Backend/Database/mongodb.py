@@ -32,9 +32,39 @@ async def connect_to_mongo():
         await mongodb.client.admin.command("ping")
         mongodb.db = mongodb.client[db_name]
         print(f"Connected to MongoDB database: {db_name}")
+        await ensure_mongo_indexes()
     except Exception as exc:
         logger.exception("Failed to connect to MongoDB at %s", mongodb_url)
         raise RuntimeError("Unable to connect to MongoDB.") from exc
+
+
+async def ensure_mongo_indexes():
+    """Ensure database indexes exist in MongoDB for production performance."""
+    if mongodb.db is None:
+        logger.error("Cannot ensure MongoDB indexes: database connection is not open.")
+        return
+
+    logger.info("Verifying and creating MongoDB indexes...")
+    try:
+        # 1. Users collection indexes
+        await mongodb.db.users.create_index("email", unique=True)
+        await mongodb.db.users.create_index("subscribed_org_ids")
+        logger.info("✅ Indexes on 'users' collection ensured.")
+        
+        # 2. Queries collection indexes
+        # Compound index for user query history sorted by time
+        await mongodb.db.queries.create_index([("user_id", 1), ("timestamp", -1)])
+        await mongodb.db.queries.create_index("organization_id")
+        await mongodb.db.queries.create_index("conversation_id")
+        logger.info("✅ Indexes on 'queries' collection ensured.")
+
+        # 3. Documents collection indexes
+        await mongodb.db.documents.create_index("organization_id")
+        await mongodb.db.documents.create_index("document_id", unique=True)
+        logger.info("✅ Indexes on 'documents' collection ensured.")
+        
+    except Exception as exc:
+        logger.warning("Failed to create MongoDB indexes: %s. Continuing startup...", str(exc))
 
 
 async def close_mongo_connection():

@@ -70,7 +70,14 @@ async function sendQuestion() {
   isStreaming = true;
 
   try {
-    const result = await API.askQuestion(question, 8, window.activeConversationId || null);
+    const orgIds = typeof getActiveQueryOrgIds === 'function' ? getActiveQueryOrgIds() : null;
+    if (API.isPublicUser() && (!orgIds || !orgIds.length)) {
+      typingEl.remove();
+      isStreaming = false;
+      showToast('Subscribe to organizations first (Subscriptions in the sidebar)', 'error');
+      return;
+    }
+    const result = await API.askQuestion(question, 8, window.activeConversationId || null, orgIds);
     window.activeConversationId = result.conversation_id;
     typingEl.remove();
 
@@ -163,6 +170,9 @@ function showTyping() {
 }
 
 async function loadChatPage() {
+  if (API.isPublicUser() && typeof syncPublicQueryOrgBar === 'function') {
+    await syncPublicQueryOrgBar();
+  }
   const list = document.getElementById('chatList');
   list.innerHTML = '<div style="padding:16px;text-align:center"><div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto"></div></div>';
   try {

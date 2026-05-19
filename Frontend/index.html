@@ -42,7 +42,7 @@
       </li>
       <li>
         <span class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-        <div><strong>Multi-tenant isolation</strong>Complete data separation per organization.</div>
+        <div><strong>Public &amp; private docs</strong>Organizations share public knowledge; workspaces keep private data.</div>
       </li>
     </ul>
     
@@ -56,16 +56,16 @@
     <!-- Login Form -->
     <div class="auth-card" id="loginForm">
       <div class="auth-logo">Welcome back</div>
-      <div class="auth-subtitle">Sign in to your workspace to continue</div>
+      <div class="auth-subtitle">Sign in to your account</div>
+      <div id="apiStatus" style="font-size:12px;margin-bottom:12px;color:var(--text-tertiary)">Checking API…</div>
       <form class="auth-form" onsubmit="handleLogin(event)">
         <div class="input-group">
-          <label for="loginEmail">Work Email</label>
-          <input type="email" id="loginEmail" class="input" placeholder="you@organization.com" required>
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" class="input" placeholder="you@example.com" required>
         </div>
         <div class="input-group">
           <label for="loginPassword" style="display:flex;justify-content:space-between">
             <span>Password</span>
-            <a href="#" style="color:var(--text-tertiary);font-weight:400;font-size:12px;text-decoration:none">Forgot?</a>
           </label>
           <input type="password" id="loginPassword" class="input" placeholder="Enter your password" required>
         </div>
@@ -73,33 +73,72 @@
         <div id="loginError" class="hidden" style="color:var(--error);font-size:var(--text-sm);text-align:center;background:var(--error-muted);padding:8px;border-radius:var(--radius-md)"></div>
       </form>
       <div class="auth-switch">
-        Don't have an account? <a href="#" onclick="toggleAuth(event,'register')">Create workspace</a>
+        Need an account?
+        <a href="#" onclick="toggleAuth(event,'register-workspace')">Create workspace</a>
+        or
+        <a href="#" onclick="toggleAuth(event,'register-public')">Join as public user</a>
       </div>
     </div>
 
-    <!-- Register Form -->
-    <div class="auth-card hidden" id="registerForm">
+    <!-- Workspace Register Form -->
+    <div class="auth-card hidden" id="registerWorkspaceForm">
       <div class="auth-logo">Create workspace</div>
-      <div class="auth-subtitle">Get started with Knowledge Assistant for free</div>
+      <div class="auth-subtitle">For teams managing their own knowledge base</div>
+      <div class="auth-type-tabs">
+        <button type="button" class="auth-type-tab active" onclick="switchRegisterType('workspace')">Workspace</button>
+        <button type="button" class="auth-type-tab" onclick="switchRegisterType('public')">Public user</button>
+      </div>
       <form class="auth-form" onsubmit="handleRegister(event)">
         <div class="input-group">
           <label for="regName">Full name</label>
           <input type="text" id="regName" class="input" placeholder="Jane Smith" required>
         </div>
         <div class="input-group">
-          <label for="regOrgName">Organization/Workspace Name</label>
+          <label for="regOrgName">Organization / workspace name</label>
           <input type="text" id="regOrgName" class="input" placeholder="Acme Corp" required>
         </div>
         <div class="input-group">
-          <label for="regEmail">Work Email</label>
+          <label for="regEmail">Work email</label>
           <input type="email" id="regEmail" class="input" placeholder="you@organization.com" required>
         </div>
         <div class="input-group">
           <label for="regPassword">Password</label>
           <input type="password" id="regPassword" class="input" placeholder="Create a strong password" required minlength="6">
         </div>
-        <button type="submit" class="btn btn-primary" id="regBtn">Create account</button>
+        <button type="submit" class="btn btn-primary" id="regBtn">Create workspace</button>
         <div id="regError" class="hidden" style="color:var(--error);font-size:var(--text-sm);text-align:center;background:var(--error-muted);padding:8px;border-radius:var(--radius-md)"></div>
+      </form>
+      <div class="auth-switch">
+        Already have an account? <a href="#" onclick="toggleAuth(event,'login')">Sign in</a>
+      </div>
+    </div>
+
+    <!-- Public User Register Form -->
+    <div class="auth-card hidden" id="registerPublicForm">
+      <div class="auth-logo">Create public account</div>
+      <div class="auth-subtitle">Browse and query public documents from organizations you follow</div>
+      <div class="auth-type-tabs">
+        <button type="button" class="auth-type-tab" onclick="switchRegisterType('workspace')">Workspace</button>
+        <button type="button" class="auth-type-tab active" onclick="switchRegisterType('public')">Public user</button>
+      </div>
+      <div class="auth-type-hint">
+        No workspace is created. After sign-up, choose which organizations to subscribe to and query only their <strong>public</strong> documents.
+      </div>
+      <form class="auth-form" onsubmit="handleRegisterPublic(event)">
+        <div class="input-group">
+          <label for="pubRegName">Full name</label>
+          <input type="text" id="pubRegName" class="input" placeholder="Jane Smith" required>
+        </div>
+        <div class="input-group">
+          <label for="pubRegEmail">Email</label>
+          <input type="email" id="pubRegEmail" class="input" placeholder="you@example.com" required>
+        </div>
+        <div class="input-group">
+          <label for="pubRegPassword">Password</label>
+          <input type="password" id="pubRegPassword" class="input" placeholder="Create a strong password" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary" id="pubRegBtn">Create public account</button>
+        <div id="pubRegError" class="hidden" style="color:var(--error);font-size:var(--text-sm);text-align:center;background:var(--error-muted);padding:8px;border-radius:var(--radius-md)"></div>
       </form>
       <div class="auth-switch">
         Already have an account? <a href="#" onclick="toggleAuth(event,'login')">Sign in</a>
@@ -112,56 +151,123 @@
 
 <script src="js/api.js"></script>
 <script>
-function toggleAuth(e,target){
-  e.preventDefault();
-  document.getElementById('loginForm').classList.toggle('hidden',target!=='login');
-  document.getElementById('registerForm').classList.toggle('hidden',target!=='register');
+function formatApiError(err) {
+  if (!err || !err.message) return 'Request failed. Please try again.';
+  if (err.message === 'Failed to fetch') {
+    return 'Cannot reach the API server. Open a terminal in the project folder and run: uvicorn Backend.main:app --reload';
+  }
+  return err.message;
 }
 
-async function handleLogin(e){
+async function checkApiStatus() {
+  const el = document.getElementById('apiStatus');
+  if (!el) return;
+  try {
+    await API.healthCheck();
+    el.textContent = 'API connected';
+    el.style.color = 'var(--success, #059669)';
+  } catch {
+    el.textContent = 'API offline — start backend (uvicorn Backend.main:app --reload)';
+    el.style.color = 'var(--error)';
+  }
+}
+
+function toggleAuth(e, target) {
   e.preventDefault();
-  const btn=document.getElementById('loginBtn');
-  const errEl=document.getElementById('loginError');
+  document.getElementById('loginForm').classList.toggle('hidden', target !== 'login');
+  document.getElementById('registerWorkspaceForm').classList.toggle('hidden', target !== 'register-workspace');
+  document.getElementById('registerPublicForm').classList.toggle('hidden', target !== 'register-public');
+}
+
+function switchRegisterType(type) {
+  if (type === 'public') {
+    document.getElementById('registerWorkspaceForm').classList.add('hidden');
+    document.getElementById('registerPublicForm').classList.remove('hidden');
+  } else {
+    document.getElementById('registerPublicForm').classList.add('hidden');
+    document.getElementById('registerWorkspaceForm').classList.remove('hidden');
+  }
+}
+
+function saveSession(data) {
+  localStorage.setItem('token', data.access_token);
+  localStorage.setItem('user', JSON.stringify(data.user));
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('loginError');
   errEl.classList.add('hidden');
-  btn.disabled=true;btn.textContent='Signing in…';
-  try{
-    const data=await API.login(
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  try {
+    const data = await API.login(
       document.getElementById('loginEmail').value,
       document.getElementById('loginPassword').value
     );
-    localStorage.setItem('token',data.access_token);
-    localStorage.setItem('user',JSON.stringify(data.user));
-    window.location.href='app.html';
-  }catch(err){
-    errEl.textContent=err.message||'Invalid credentials. Please try again.';
+    saveSession(data);
+    window.location.href = 'app.html';
+  } catch (err) {
+    errEl.textContent = formatApiError(err);
     errEl.classList.remove('hidden');
-  }finally{btn.disabled=false;btn.textContent='Sign in';}
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
 }
 
-async function handleRegister(e){
+async function handleRegister(e) {
   e.preventDefault();
-  const btn=document.getElementById('regBtn');
-  const errEl=document.getElementById('regError');
+  const btn = document.getElementById('regBtn');
+  const errEl = document.getElementById('regError');
   errEl.classList.add('hidden');
-  btn.disabled=true;btn.textContent='Creating workspace…';
-  try{
-    const data=await API.register(
+  btn.disabled = true;
+  btn.textContent = 'Creating workspace…';
+  try {
+    const data = await API.register(
       document.getElementById('regName').value,
       document.getElementById('regEmail').value,
       document.getElementById('regPassword').value,
       document.getElementById('regOrgName').value
     );
-    localStorage.setItem('token',data.access_token);
-    localStorage.setItem('user',JSON.stringify(data.user));
-    window.location.href='app.html';
-  }catch(err){
-    errEl.textContent=err.message||'Registration failed. Please try again.';
+    saveSession(data);
+    window.location.href = 'app.html';
+  } catch (err) {
+    errEl.textContent = formatApiError(err);
     errEl.classList.remove('hidden');
-  }finally{btn.disabled=false;btn.textContent='Create account';}
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create workspace';
+  }
 }
 
-// If already logged in, redirect
-if(localStorage.getItem('token'))window.location.href='app.html';
+async function handleRegisterPublic(e) {
+  e.preventDefault();
+  const btn = document.getElementById('pubRegBtn');
+  const errEl = document.getElementById('pubRegError');
+  errEl.classList.add('hidden');
+  btn.disabled = true;
+  btn.textContent = 'Creating account…';
+  try {
+    const data = await API.registerPublic(
+      document.getElementById('pubRegName').value,
+      document.getElementById('pubRegEmail').value,
+      document.getElementById('pubRegPassword').value
+    );
+    saveSession(data);
+    window.location.href = 'app.html?onboarding=1#subscriptions';
+  } catch (err) {
+    errEl.textContent = formatApiError(err);
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create public account';
+  }
+}
+
+if (localStorage.getItem('token')) window.location.href = 'app.html';
+document.addEventListener('DOMContentLoaded', checkApiStatus);
 </script>
 </body>
 </html>

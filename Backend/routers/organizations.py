@@ -1,10 +1,14 @@
 import logging
-from fastapi import APIRouter, HTTPException, status, Depends
+import re
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, status, Depends, Query
 from datetime import datetime
 from bson import ObjectId
 from Backend.Database.mongodb import mongodb
 from Backend.core.security import get_current_user, hash_password
 from Backend.models.organization import (
+    OrganizationBrowseItem,
     OrganizationCreate,
     OrganizationResponse,
     OrganizationUserCreate,
@@ -63,6 +67,51 @@ async def create_organization(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create organization",
+        )
+
+
+@router.get("/browse", response_model=List[OrganizationBrowseItem], tags=["organizations"])
+async def browse_organizations(
+    current_user: dict = Depends(get_current_user),
+    q: Optional[str] = Query(None, description="Search by name, slug, or description"),
+    limit: int = 100,
+):
+    """List organizations available for public users to subscribe to."""
+    try:
+        mongo_query = {}
+        if q and q.strip():
+            pattern = re.escape(q.strip())
+            mongo_query = {
+                "$or": [
+                    {"name": {"$regex": pattern, "$options": "i"}},
+                    {"slug": {"$regex": pattern, "$options": "i"}},
+                    {"description": {"$regex": pattern, "$options": "i"}},
+                ]
+            }
+
+        cursor = (
+            mongodb.db.organizations.find(
+                mongo_query,
+                {"name": 1, "slug": 1, "description": 1},
+            )
+            .sort("name", 1)
+            .limit(limit)
+        )
+        orgs = await cursor.to_list(length=limit)
+        return [
+            OrganizationBrowseItem(
+                organization_id=str(o["_id"]),
+                name=o["name"],
+                slug=o.get("slug", ""),
+                description=o.get("description"),
+            )
+            for o in orgs
+        ]
+    except Exception as e:
+        logger.error("Error browsing organizations: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list organizations",
         )
 
 
@@ -173,6 +222,7 @@ async def create_org_user(
             "hashed_password": hash_password(user_data.password),
             "full_name": user_data.full_name,
             "organization_id": org_id,
+            "role": "org_member",
             "is_admin": user_data.is_admin,
             "created_at": datetime.utcnow().isoformat() + "Z",
         }

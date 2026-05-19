@@ -63,14 +63,43 @@ document.addEventListener('DOMContentLoaded', () => {
   const user = API.getUser();
   document.getElementById('userName').textContent = user.full_name || 'User';
   document.getElementById('userAvatar').textContent = (user.full_name || 'U')[0].toUpperCase();
+  updateSidebarForRole();
   loadOrgName();
-  navigate('chat');
+  const hash = (window.location.hash || '').replace('#', '');
+  if (API.isPublicUser() && API.getSubscribedOrgIds().length === 0) {
+    navigate('subscriptions');
+  } else if (hash === 'subscriptions' && API.isPublicUser()) {
+    navigate('subscriptions');
+  } else {
+    navigate('chat');
+  }
   setupKeyboardShortcuts();
   buildCommandList();
   if (window.innerWidth <= 768) document.getElementById('mobileMenuBtn').style.display = 'block';
 });
 
+function updateSidebarForRole() {
+  const isPublic = API.isPublicUser();
+  document.querySelectorAll('.nav-org-only').forEach((el) => {
+    el.classList.toggle('hidden', isPublic);
+  });
+  document.querySelectorAll('.nav-public-only').forEach((el) => {
+    el.classList.toggle('hidden', !isPublic);
+  });
+  const breadcrumbWorkspace = document.querySelector('.topbar-breadcrumb span:first-child');
+  if (breadcrumbWorkspace) {
+    breadcrumbWorkspace.textContent = isPublic ? 'Public access' : 'Workspace';
+  }
+}
+
 async function loadOrgName() {
+  if (API.isPublicUser()) {
+    const n = API.getSubscribedOrgIds().length;
+    document.getElementById('userOrg').textContent =
+      n === 0 ? 'Public user · no subscriptions' : `Public user · ${n} org${n === 1 ? '' : 's'}`;
+    if (typeof syncPublicQueryOrgBar === 'function') syncPublicQueryOrgBar();
+    return;
+  }
   try {
     const org = await API.getOrganization();
     document.getElementById('userOrg').textContent = org.name || 'Organization';
@@ -78,7 +107,7 @@ async function loadOrgName() {
 }
 
 // ── Navigation ──────────────────────────────────────────────
-const pageNames = { chat:'Ask AI', documents:'Documents', analytics:'Analytics', history:'Query History', org:'Organization', team:'Team Members', admin:'Settings' };
+const pageNames = { chat:'Ask AI', subscriptions:'Subscriptions', documents:'Documents', analytics:'Analytics', history:'Query History', org:'Organization', team:'Team Members', admin:'Settings' };
 
 function navigate(page) {
   currentPage = page;
@@ -88,6 +117,7 @@ function navigate(page) {
   document.getElementById('breadcrumbPage').textContent = pageNames[page] || page;
 
   if (page === 'chat') loadChatPage();
+  else if (page === 'subscriptions') loadSubscriptions();
   else if (page === 'documents') loadDocuments();
   else if (page === 'analytics') loadAnalytics();
   else if (page === 'history') loadHistory();

@@ -26,6 +26,14 @@ class OrganizationUserCreate(BaseModel):
     is_admin: bool = False
 
 
+class OrganizationBrowseItem(BaseModel):
+    """Public-facing organization summary for subscription picker."""
+    organization_id: str
+    name: str
+    slug: str
+    description: Optional[str] = None
+
+
 class OrganizationUserResponse(BaseModel):
     """Schema for displaying an organization user."""
     user_id: str

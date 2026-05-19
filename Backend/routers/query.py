@@ -27,6 +27,7 @@ class QueryRequest(BaseModel):
     question: str
     conversation_id: Optional[str] = None
     top_k: Optional[int] = 8
+    org_ids: Optional[List[str]] = None  # public users: subset of subscribed orgs
 
 
 class QueryHistoryItem(BaseModel):
@@ -55,20 +56,52 @@ async def ask_question(
             )
 
         user_id = current_user.get("user_id")
-        org_id = current_user.get("organization_id")
-        
-        # Get embedding model from app state
+        role = current_user.get("role", "org_member")
         embedding_model = http_request.app.state.embedding_model
 
-        logger.info("Processing query '%s' for user %s, org %s (convo: %s)", 
-                   query_request.question[:50], user_id, org_id, query_request.conversation_id)
+        org_id = None
+        org_ids = None
+        subscribed_org_ids = current_user.get("subscribed_org_ids", [])
 
-        # Call RAG pipeline
+        if role == "public_user":
+            requested = query_request.org_ids or subscribed_org_ids
+            if not requested:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Subscribe to at least one organization or provide org_ids",
+                )
+            invalid = set(requested) - set(subscribed_org_ids)
+            if invalid:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Not subscribed to organization(s): {', '.join(sorted(invalid))}",
+                )
+            org_ids = requested
+        else:
+            org_id = current_user.get("organization_id")
+            if not org_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User has no associated organization",
+                )
+
+        logger.info(
+            "Processing query '%s' for user %s role=%s scope=%s (convo: %s)",
+            query_request.question[:50],
+            user_id,
+            role,
+            org_id or org_ids,
+            query_request.conversation_id,
+        )
+
         result = await handle_query(
             question=query_request.question,
-            org_id=org_id,
             user_id=user_id,
             embedding_model=embedding_model,
+            role=role,
+            org_id=org_id,
+            org_ids=org_ids,
+            subscribed_org_ids=subscribed_org_ids,
             classifier=classifier,
             top_k=query_request.top_k,
             conversation_id=query_request.conversation_id,
@@ -105,14 +138,16 @@ async def get_query_history(
 ):
     """Get query conversation history for the current organization and user."""
     try:
+        role = current_user.get("role", "org_member")
         org_id = current_user.get("organization_id")
         user_id = current_user.get("user_id")
 
+        match_filter = {"user_id": user_id}
+        if role != "public_user":
+            match_filter["organization_id"] = org_id
+
         pipeline = [
-            {"$match": {
-                "organization_id": org_id,
-                "user_id": user_id
-            }},
+            {"$match": match_filter},
             {"$project": {
                 "question": 1,
                 "answer": 1,
@@ -169,16 +204,18 @@ async def get_conversation_messages(
 ):
     """Retrieve all query turns (messages) in a specific conversation thread for the user."""
     try:
+        role = current_user.get("role", "org_member")
         org_id = current_user.get("organization_id")
         user_id = current_user.get("user_id")
 
         query_filter = {
-            "organization_id": org_id,
             "user_id": user_id,
             "$or": [
                 {"conversation_id": conversation_id},
             ]
         }
+        if role != "public_user":
+            query_filter["organization_id"] = org_id
         if ObjectId.is_valid(conversation_id):
             query_filter["$or"].append({"_id": ObjectId(conversation_id)})
 
@@ -275,16 +312,18 @@ async def delete_query_or_conversation(
 ):
     """Delete a query history log item or an entire conversation thread securely for the current user."""
     try:
+        role = current_user.get("role", "org_member")
         org_id = current_user.get("organization_id")
         user_id = current_user.get("user_id")
         
         delete_filter = {
-            "organization_id": org_id,
             "user_id": user_id,
             "$or": [
                 {"conversation_id": id},
             ]
         }
+        if role != "public_user":
+            delete_filter["organization_id"] = org_id
         if ObjectId.is_valid(id):
             delete_filter["$or"].append({"_id": ObjectId(id)})
 

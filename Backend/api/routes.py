@@ -14,14 +14,15 @@ from datetime import datetime
 from typing import List, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from pydantic import BaseModel, field_validator
 
 from Backend.core.security import get_current_user
 from Backend.Database.mongodb import mongodb
 from Backend.Services.embedding_service import (
     delete_document_vectors,
     save_embeddings_to_qdrant,
+    update_document_status_in_qdrant,
 )
 from Backend.Services.file_utils import save_file
 from Backend.Services.text_processor import extract_text, split_text
@@ -52,6 +53,17 @@ class UploadResponse(BaseModel):
     document: dict
 
 
+class DocumentStatusUpdate(BaseModel):
+    status: str
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in ("public", "private"):
+            raise ValueError("status must be 'public' or 'private'")
+        return v
+
+
 # ---------------------------------------------------------------------------
 # GET / — lightweight root / health check for this router
 # ---------------------------------------------------------------------------
@@ -72,6 +84,7 @@ async def upload_document(
     description: str = "",
     tags: Optional[str] = None,  # comma-separated string for form-data compatibility
     version: int = 1,
+    status: str = Form("private"),
     current_user: dict = Depends(get_current_user),
 ):
     """
@@ -95,6 +108,12 @@ async def upload_document(
 
     if not org_id:
         raise HTTPException(status_code=400, detail="User has no associated organization.")
+
+    if status not in ("public", "private"):
+        raise HTTPException(
+            status_code=400,
+            detail="status must be 'public' or 'private'",
+        )
 
     tag_list: List[str] = [t.strip() for t in tags.split(",")] if tags else []
 
@@ -138,6 +157,7 @@ async def upload_document(
                 "source_name": original_name,
                 "file_type": file.filename.split(".")[-1].lower(),
                 "upload_user_id": user_id,
+                "status": status,
             },
             model=embedding_model,
         )
@@ -158,7 +178,7 @@ async def upload_document(
             "uploaded_at": now_utc,
             "last_updated": now_utc,
             "processed": True,
-            "status": "ready",
+            "status": status,
             "chunk_count": chunk_count,
             "tags": tag_list,
             "version": version,
@@ -230,7 +250,7 @@ async def list_documents(
                 file_size_mb=d.get("file_size_mb", 0.0),
                 chunk_count=d.get("chunk_count", 0),
                 upload_date=d.get("upload_date", d.get("uploaded_at", "")),
-                status=d.get("status", "ready"),
+                status=d.get("status", "private"),
                 tags=d.get("tags", []),
             )
             for d in docs
@@ -238,6 +258,65 @@ async def list_documents(
     except Exception as exc:
         logger.error("Error listing documents for org '%s': %s", org_id, exc)
         raise HTTPException(status_code=500, detail="Failed to retrieve document list.")
+
+
+# ---------------------------------------------------------------------------
+# PATCH /{doc_id}/status — toggle document privacy (admin only)
+# ---------------------------------------------------------------------------
+@router.patch("/{doc_id}/status", tags=["documents"])
+async def update_document_status(
+    doc_id: str,
+    body: DocumentStatusUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Set a document's privacy status to public or private."""
+    if not current_user.get("is_admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only administrators can change document visibility.",
+        )
+
+    org_id = current_user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="User has no associated organization.")
+
+    try:
+        doc = await mongodb.db.documents.find_one({"_id": doc_id})
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found.")
+        if doc.get("organization_id") != org_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to modify this document.",
+            )
+
+        now_utc = datetime.utcnow().isoformat() + "Z"
+        await mongodb.db.documents.update_one(
+            {"_id": doc_id},
+            {"$set": {"status": body.status, "last_updated": now_utc}},
+        )
+
+        try:
+            update_document_status_in_qdrant(doc_id, body.status)
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
+        logger.info(
+            "Document status updated: id=%s status=%s org=%s",
+            doc_id,
+            body.status,
+            org_id,
+        )
+        return {
+            "message": "Document status updated successfully.",
+            "document_id": doc_id,
+            "status": body.status,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error updating document status '%s'", doc_id)
+        raise HTTPException(status_code=500, detail="Failed to update document status.")
 
 
 # ---------------------------------------------------------------------------

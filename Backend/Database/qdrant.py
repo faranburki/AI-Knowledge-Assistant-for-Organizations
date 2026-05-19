@@ -58,6 +58,11 @@ def _ensure_collection(qdrant_client: QdrantClient) -> None:
                 field_name="upload_user_id",
                 field_schema=PayloadSchemaType.KEYWORD,
             )
+            qdrant_client.create_payload_index(
+                collection_name=COLLECTION_NAME,
+                field_name="status",
+                field_schema=PayloadSchemaType.KEYWORD,
+            )
         except Exception as e:
             logger.warning("Payload indexes may already exist or could not be created: %s", str(e))
             

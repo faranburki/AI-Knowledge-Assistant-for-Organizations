@@ -10,7 +10,7 @@ from sentence_transformers import SentenceTransformer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from Backend.api.routes import router as documents_router
-from Backend.routers import auth, organizations, query
+from Backend.routers import auth, organizations, query, users
 from Backend.Database.mongodb import connect_to_mongo, close_mongo_connection
 from Backend.Database.qdrant import connect_to_qdrant
 
@@ -107,5 +107,6 @@ app.include_router(documents_router, prefix="/documents", tags=["documents"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(organizations.router, prefix="/orgs", tags=["organizations"])
 app.include_router(query.router, prefix="/query", tags=["query"])
+app.include_router(users.router, prefix="/users", tags=["users"])
 
 logger.info("All routers registered")

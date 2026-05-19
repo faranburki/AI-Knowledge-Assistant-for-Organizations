@@ -431,6 +431,7 @@ function closeAddUserModal(event) {
   if (modal) modal.classList.add('hidden');
 }
 
+
 async function handleAddUserSubmit(event) {
   event.preventDefault();
   

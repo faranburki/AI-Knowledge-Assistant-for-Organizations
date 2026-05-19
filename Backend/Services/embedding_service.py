@@ -45,12 +45,15 @@ def build_qdrant_points(
         # Deterministic UUID per chunk — safe for Qdrant
         point_id = str(uuid.uuid5(namespace, f"{doc_id}_chunk_{idx}"))
 
+        doc_status = metadata.get("status", "private")
         payload = {
             "document_id": doc_id,
             "organization_id": metadata.get("organization_id"),
             "source_name": metadata.get("source_name"),
             "file_type": metadata.get("file_type"),
             "upload_user_id": metadata.get("upload_user_id"),
+            "status": doc_status,
+            "is_public": doc_status == "public",
             "chunk_index": idx,
             "chunk_text": chunk_text,
             "page_estimate": max(1, (idx - 1) // 5 + 1),  # ~5 chunks per page estimate
@@ -94,6 +97,38 @@ async def save_embeddings_to_qdrant(
         raise ValueError("Unable to save embeddings to the vector store.") from exc
 
     return len(points)
+
+
+def update_document_status_in_qdrant(document_id: str, status: str) -> None:
+    """Update privacy status on all Qdrant points for a document."""
+    if status not in ("public", "private"):
+        raise ValueError("status must be 'public' or 'private'")
+
+    try:
+        from qdrant_client.http.models import Filter, FieldCondition, MatchValue
+
+        qdrant.client.set_payload(
+            collection_name=qdrant.COLLECTION_NAME,
+            payload={"status": status, "is_public": status == "public"},
+            points=Filter(
+                must=[
+                    FieldCondition(
+                        key="document_id",
+                        match=MatchValue(value=document_id),
+                    )
+                ]
+            ),
+        )
+        logger.info(
+            "Updated Qdrant payload status='%s' for document '%s'",
+            status,
+            document_id,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to update Qdrant status for document '%s'", document_id
+        )
+        raise ValueError("Unable to update document visibility in the vector store.") from exc
 
 
 def delete_document_vectors(document_id: str) -> None:

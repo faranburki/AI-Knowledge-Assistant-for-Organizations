@@ -1,12 +1,26 @@
 /* ═══════════════════════════════════════════════════════════════
    API Client — communicates with FastAPI backend
    ═══════════════════════════════════════════════════════════════ */
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
-  ? 'http://127.0.0.1:8000'
-  : '';          // same-origin in production
+function resolveApiBase() {
+  const override = localStorage.getItem('api_base');
+  if (override) return override.replace(/\/$/, '');
+  const host = window.location.hostname;
+  const isLocal =
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '[::1]' ||
+    window.location.protocol === 'file:';
+  return isLocal ? 'http://127.0.0.1:8000' : '';
+}
+
+const API_BASE = resolveApiBase();
 
 const API = {
   _token() { return localStorage.getItem('token') || ''; },
+
+  apiBase() {
+    return API_BASE || window.location.origin;
+  },
 
   async _req(method, path, body, extra = {}) {
     const headers = { 'Content-Type': 'application/json' };
@@ -16,16 +30,43 @@ const API = {
     const opts = { method, headers };
     if (body && method !== 'GET') opts.body = JSON.stringify(body);
 
-    const res = await fetch(API_BASE + path, opts);
+    const url = (API_BASE || '') + path;
+    let res;
+    try {
+      res = await fetch(url, opts);
+    } catch (networkErr) {
+      const base = API_BASE || window.location.origin;
+      throw new Error(
+        `Cannot reach the API at ${base}. Start the backend in the project folder: ` +
+          'uvicorn Backend.main:app --reload'
+      );
+    }
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.detail || `Request failed (${res.status})`);
+    if (!res.ok) {
+      const d = json.detail;
+      const msg = Array.isArray(d) ? d.map((x) => x.msg || JSON.stringify(x)).join('; ')
+        : (typeof d === 'string' ? d : d ? JSON.stringify(d) : `Request failed (${res.status})`);
+      throw new Error(msg);
+    }
     return json;
+  },
+
+  async healthCheck() {
+    return this._req('GET', '/health');
   },
 
   async _upload(path, formData) {
     const headers = {};
     if (this._token()) headers['Authorization'] = 'Bearer ' + this._token();
-    const res = await fetch(API_BASE + path, { method: 'POST', headers, body: formData });
+    const url = (API_BASE || '') + path;
+    let res;
+    try {
+      res = await fetch(url, { method: 'POST', headers, body: formData });
+    } catch {
+      throw new Error(
+        `Cannot reach the API at ${API_BASE || window.location.origin}. Is uvicorn running?`
+      );
+    }
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.detail || 'Upload failed');
     return json;
@@ -35,8 +76,21 @@ const API = {
   register(full_name, email, password, organization_name) {
     return this._req('POST', '/auth/register', { email, password, full_name, organization_name });
   },
+  registerPublic(full_name, email, password) {
+    return this._req('POST', '/auth/register/public', { email, password, full_name });
+  },
   login(email, password) {
     return this._req('POST', '/auth/login', { email, password });
+  },
+  subscribeToOrganizations(organization_ids) {
+    return this._req('POST', '/users/subscribe', { organization_ids });
+  },
+  browseOrganizations(q = '') {
+    const params = new URLSearchParams();
+    if (q && q.trim()) params.set('q', q.trim());
+    params.set('limit', '100');
+    const qs = params.toString();
+    return this._req('GET', `/orgs/browse${qs ? '?' + qs : ''}`);
   },
   logout() {
     localStorage.removeItem('token');
@@ -46,7 +100,18 @@ const API = {
   getUser() {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
   },
+  setUser(user) {
+    localStorage.setItem('user', JSON.stringify(user));
+  },
   isLoggedIn() { return !!this._token(); },
+  isPublicUser() {
+    const u = this.getUser();
+    return u.role === 'public_user';
+  },
+  getSubscribedOrgIds() {
+    const u = this.getUser();
+    return u.subscribed_org_ids || [];
+  },
 
   // ── Organization ──────────────────────────────────────────
   getOrganization() { return this._req('GET', '/orgs/me'); },
@@ -75,8 +140,10 @@ const API = {
   },
 
   // ── Query ─────────────────────────────────────────────────
-  askQuestion(question, top_k = 8, conversation_id = null) {
-    return this._req('POST', '/query/ask', { question, top_k, conversation_id });
+  askQuestion(question, top_k = 8, conversation_id = null, org_ids = null) {
+    const body = { question, top_k, conversation_id };
+    if (org_ids && org_ids.length) body.org_ids = org_ids;
+    return this._req('POST', '/query/ask', body);
   },
   getConversation(conversationId) {
     return this._req('GET', `/query/conversation/${conversationId}`);

@@ -30,27 +30,75 @@ DEFAULT_LLM_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 # ---------------------------------------------------------------------------
 # Step 1 — Retrieve relevant chunks from Qdrant
 # ---------------------------------------------------------------------------
+def build_retrieval_filter(
+    role: str,
+    org_id: Optional[str] = None,
+    org_ids: Optional[List[str]] = None,
+    subscribed_org_ids: Optional[List[str]] = None,
+):
+    """Build a Qdrant filter based on the querying user's role."""
+    from qdrant_client.http.models import (
+        FieldCondition,
+        Filter,
+        MatchAny,
+        MatchValue,
+    )
+
+    if role == "public_user":
+        target_orgs = org_ids if org_ids else (subscribed_org_ids or [])
+        if not target_orgs:
+            return None
+        return Filter(
+            must=[
+                FieldCondition(
+                    key="organization_id",
+                    match=MatchAny(any=target_orgs),
+                ),
+                FieldCondition(
+                    key="status",
+                    match=MatchValue(value="public"),
+                ),
+            ]
+        )
+
+    if not org_id:
+        return None
+
+    return Filter(
+        must=[
+            FieldCondition(
+                key="organization_id",
+                match=MatchValue(value=org_id),
+            )
+        ]
+    )
+
+
 async def retrieve_chunks(
     query_vector: List[float],
-    org_id: str,
+    role: str = "org_member",
+    org_id: Optional[str] = None,
+    org_ids: Optional[List[str]] = None,
+    subscribed_org_ids: Optional[List[str]] = None,
     top_k: int = 8,
     score_threshold: float = 0.3,
 ) -> List[Dict]:
-    """Retrieve top-k semantically similar chunks from Qdrant for this org."""
+    """Retrieve top-k semantically similar chunks with role-based access control."""
     try:
-        from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+        query_filter = build_retrieval_filter(
+            role=role,
+            org_id=org_id,
+            org_ids=org_ids,
+            subscribed_org_ids=subscribed_org_ids,
+        )
+        if query_filter is None:
+            logger.warning("No valid retrieval scope for role=%s", role)
+            return []
 
         results = qdrant.client.query_points(
             collection_name=qdrant.COLLECTION_NAME,
             query=query_vector,
-            query_filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="organization_id",
-                        match=MatchValue(value=org_id),
-                    )
-                ]
-            ),
+            query_filter=query_filter,
             limit=top_k,
         )
 
@@ -68,7 +116,8 @@ async def retrieve_chunks(
                     }
                 )
 
-        logger.info("Retrieved %d chunks for org '%s'", len(chunks), org_id)
+        scope = org_id or org_ids or subscribed_org_ids
+        logger.info("Retrieved %d chunks (role=%s, scope=%s)", len(chunks), role, scope)
         return chunks
     except Exception as exc:
         logger.error("Error retrieving chunks from Qdrant: %s", exc)
@@ -201,9 +250,12 @@ async def log_query(
 # ---------------------------------------------------------------------------
 async def handle_query(
     question: str,
-    org_id: str,
     user_id: str,
     embedding_model,
+    role: str = "org_member",
+    org_id: Optional[str] = None,
+    org_ids: Optional[List[str]] = None,
+    subscribed_org_ids: Optional[List[str]] = None,
     classifier=None,
     top_k: int = 8,
     conversation_id: Optional[str] = None,
@@ -227,8 +279,17 @@ async def handle_query(
         # 1. Embed the question
         query_vector: List[float] = embedding_model.encode([question])[0].tolist()
 
-        # 2. Retrieve chunks
-        chunks = await retrieve_chunks(query_vector, org_id, top_k=top_k)
+        # 2. Retrieve chunks (role-aware)
+        chunks = await retrieve_chunks(
+            query_vector,
+            role=role,
+            org_id=org_id,
+            org_ids=org_ids,
+            subscribed_org_ids=subscribed_org_ids,
+            top_k=top_k,
+        )
+
+        log_org_id = org_id or (org_ids[0] if org_ids else None)
 
         # 3. Classify
         category = "general"
@@ -247,7 +308,7 @@ async def handle_query(
         # 6. Log to MongoDB
         total_ms = int((time.time() - t0) * 1000)
         await log_query(
-            organization_id=org_id,
+            organization_id=log_org_id or "",
             user_id=user_id,
             question=question,
             answer=answer,
