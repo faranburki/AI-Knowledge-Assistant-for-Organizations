@@ -103,7 +103,9 @@ async def get_current_user(request: Request) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    role = user.get("role", "org_member")
+    role = user.get("role")
+    if not role:
+        role = "org_member" if user.get("organization_id") else "public_user"
 
     return {
         "user_id": user_id,
@@ -112,14 +114,17 @@ async def get_current_user(request: Request) -> dict:
         "full_name": user.get("full_name"),
         "is_admin": user.get("is_admin", False),
         "role": role,
-        "subscribed_org_ids": user.get("subscribed_org_ids", []),
+        "subscribed_org_ids": user.get("subscribed_org_ids") or [],
     }
 
 
 def build_token_data(user: dict) -> dict:
     """Build JWT claims from a MongoDB user document."""
     user_id = str(user["_id"])
-    data = {"sub": user_id, "role": user.get("role", "org_member")}
+    role = user.get("role")
+    if not role:
+        role = "org_member" if user.get("organization_id") else "public_user"
+    data = {"sub": user_id, "role": role}
     org_id = user.get("organization_id")
     if org_id:
         data["org_id"] = org_id
@@ -130,12 +135,16 @@ def user_response_from_doc(user: dict, user_id: str):
     """Build a UserResponse from a MongoDB user document."""
     from Backend.models.user import UserResponse
 
+    role = user.get("role")
+    if not role:
+        role = "org_member" if user.get("organization_id") else "public_user"
+
     return UserResponse(
         user_id=user_id,
         email=user["email"],
         full_name=user["full_name"],
         organization_id=user.get("organization_id"),
         is_admin=user.get("is_admin", False),
-        role=user.get("role", "org_member"),
-        subscribed_org_ids=user.get("subscribed_org_ids", []),
+        role=role,
+        subscribed_org_ids=user.get("subscribed_org_ids") or [],
     )

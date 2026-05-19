@@ -166,6 +166,7 @@ async def upload_document(
         file_size_mb = round(os.path.getsize(file_path) / (1024 * 1024), 4)
         doc_meta = {
             "_id": doc_id,
+            "document_id": doc_id,
             "organization_id": org_id,
             "title": title or original_name,
             "description": description,

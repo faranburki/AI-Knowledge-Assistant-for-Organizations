@@ -56,12 +56,12 @@ async def ask_question(
             )
 
         user_id = current_user.get("user_id")
-        role = current_user.get("role", "org_member")
+        role = current_user.get("role") or ("org_member" if current_user.get("organization_id") else "public_user")
         embedding_model = http_request.app.state.embedding_model
 
         org_id = None
         org_ids = None
-        subscribed_org_ids = current_user.get("subscribed_org_ids", [])
+        subscribed_org_ids = current_user.get("subscribed_org_ids") or []
 
         if role == "public_user":
             requested = query_request.org_ids or subscribed_org_ids
@@ -138,7 +138,7 @@ async def get_query_history(
 ):
     """Get query conversation history for the current organization and user."""
     try:
-        role = current_user.get("role", "org_member")
+        role = current_user.get("role") or ("org_member" if current_user.get("organization_id") else "public_user")
         org_id = current_user.get("organization_id")
         user_id = current_user.get("user_id")
 
@@ -204,7 +204,7 @@ async def get_conversation_messages(
 ):
     """Retrieve all query turns (messages) in a specific conversation thread for the user."""
     try:
-        role = current_user.get("role", "org_member")
+        role = current_user.get("role") or ("org_member" if current_user.get("organization_id") else "public_user")
         org_id = current_user.get("organization_id")
         user_id = current_user.get("user_id")
 
@@ -312,7 +312,7 @@ async def delete_query_or_conversation(
 ):
     """Delete a query history log item or an entire conversation thread securely for the current user."""
     try:
-        role = current_user.get("role", "org_member")
+        role = current_user.get("role") or ("org_member" if current_user.get("organization_id") else "public_user")
         org_id = current_user.get("organization_id")
         user_id = current_user.get("user_id")
         
