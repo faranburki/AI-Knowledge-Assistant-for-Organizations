@@ -4,7 +4,7 @@
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn)](https://scikit-learn.org/)
 [![Qdrant](https://img.shields.io/badge/Qdrant-Red?style=flat-square&logo=qdrant)](https://qdrant.tech/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+
 
 An enterprise-grade, multi-tenant **AI-Powered Knowledge Assistant & Document Q&A Platform** designed for organizations. DocQuery automatically reads, chunks, embeds, and indexes your institutional documents into a high-performance vector store (Qdrant), serving precise, context-aware answers to users through an isolated multi-tenant architecture.
 

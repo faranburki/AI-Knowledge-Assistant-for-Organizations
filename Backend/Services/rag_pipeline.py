@@ -135,13 +135,20 @@ def build_prompt(question: str, chunks: List[Dict], token_budget: int = 2000) ->
     if not chunks:
         prompt_text = (
             "You are a helpful assistant for an organization's knowledge base.\n"
-            "The user is asking a general question or greeting you, and no specific document context is available.\n"
-            "Respond to the user naturally, politely, and professionally. If they are greeting you, greet them back warmly "
-            "and offer to help them find information in their documents.\n\n"
+            "The user is asking a question, but NO relevant documents or specific context was found in the database (embeddings were not found).\n"
+            "You MUST start your response by explicitly informing the user that no relevant documents or specific context were found in the knowledge base, "
+            "and then you may try to answer their question using your general knowledge, or greet them if they are just saying hello.\n\n"
             f"User message: {question}\n\n"
             "Response:"
         )
-        return prompt_text, []
+        no_context_source = {
+            "document_id": "none",
+            "chunk_index": 0,
+            "source_name": "No relevant documents found",
+            "excerpt": "No semantic matches or context found in the database.",
+            "score": 0.0,
+        }
+        return prompt_text, [no_context_source]
 
     header = (
         "You are a helpful assistant for an organization's knowledge base.\n"
