@@ -19,13 +19,29 @@ class BaseVoiceProvider(abc.ABC):
 class Pyttsx3VoiceProvider(BaseVoiceProvider):
     """Local CPU-optimized fallback provider using OS native voices."""
     def generate_audio(self, text: str, filepath: str) -> None:
-        import pyttsx3
-        # Initialize engine inside the thread to avoid COM context issues across threads
-        engine = pyttsx3.init()
-        # Adjust properties for a more professional tone
-        engine.setProperty('rate', 170)
-        engine.save_to_file(text, filepath)
-        engine.runAndWait()
+        import subprocess
+        import tempfile
+        import os
+        import sys
+        
+        # Pyttsx3 on Windows (SAPI5) leaks COM state and speech queues across threads.
+        # If a previous generation fails, its text stays in the queue and plays later!
+        # We MUST run it in a completely isolated subprocess to guarantee statelessness.
+        script = f'''import pyttsx3
+engine = pyttsx3.init()
+engine.setProperty("rate", 170)
+engine.save_to_file({repr(text)}, r"{filepath}")
+engine.runAndWait()
+'''
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+            f.write(script)
+            script_path = f.name
+            
+        try:
+            subprocess.run([sys.executable, script_path], check=True, capture_output=True)
+        finally:
+            if os.path.exists(script_path):
+                os.remove(script_path)
 
 
 # We use a factory pattern to allow easy swapping to Piper/Kokoro in the future
@@ -49,8 +65,23 @@ async def generate_speech_bytes(text: str) -> bytes:
         try:
             provider.generate_audio(text, temp_path)
             with open(temp_path, "rb") as f:
-                audio_bytes = f.read()
-            return audio_bytes
+                audio_bytes = bytearray(f.read())
+                
+            # Pyttsx3 on Windows often writes malformed WAV headers with incorrect chunk sizes.
+            # PyAV (FFmpeg) will strictly obey the incorrect size and truncate the audio to 1-2 words!
+            # We must manually patch the RIFF and 'data' chunk sizes in the raw bytes.
+            if audio_bytes.startswith(b"RIFF"):
+                import struct
+                # Fix RIFF total size
+                struct.pack_into('<I', audio_bytes, 4, len(audio_bytes) - 8)
+                
+                # Scan for the 'data' chunk and fix its size
+                data_idx = audio_bytes.find(b"data")
+                if data_idx != -1 and data_idx < 1024:
+                    actual_data_size = len(audio_bytes) - (data_idx + 8)
+                    struct.pack_into('<I', audio_bytes, data_idx + 4, actual_data_size)
+                    
+            return bytes(audio_bytes)
         finally:
             # Clean up the file to prevent storage leaks
             if os.path.exists(temp_path):

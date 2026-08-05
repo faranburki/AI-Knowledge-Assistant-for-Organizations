@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } else if (hash === 'subscriptions' && API.isPublicUser()) {
     navigate('subscriptions');
   } else {
-    navigate('chat');
+    navigate('dashboard');
   }
   setupKeyboardShortcuts();
   buildCommandList();
@@ -107,7 +107,7 @@ async function loadOrgName() {
 }
 
 // ── Navigation ──────────────────────────────────────────────
-const pageNames = { dashboard:'Dashboard', agents:'Agents', knowledge:'Knowledge Base', conversations:'Conversations', voice:'Voice Agents', analytics:'Analytics', settings:'Settings', chat:'Ask AI', subscriptions:'Subscriptions', documents:'Documents', history:'Query History', org:'Organization', team:'Team Members', admin:'Settings' };
+const pageNames = { dashboard: 'Dashboard', chat:'Conversations', agents:'Agents', documents:'Knowledge Base', voice:'Voice Agents', analytics:'Analytics', admin:'Settings', subscriptions:'Subscriptions', org:'Organization', team:'Team Members' };
 
 function navigate(page) {
   currentPage = page;

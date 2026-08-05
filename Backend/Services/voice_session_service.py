@@ -18,6 +18,10 @@ async def create_session(
     """Create a new Voice Session runtime state."""
     
     session_id = f"vsession_{uuid.uuid4().hex}"
+    
+    if not conversation_id:
+        conversation_id = f"conv_{uuid.uuid4().hex}"
+        
     now_iso = datetime.now(timezone.utc).isoformat()
     
     session_doc = {

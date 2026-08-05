@@ -278,6 +278,22 @@ async def handle_query(
                 ans = cached_query["answer"]
                 if "An internal error occurred" not in ans:
                     logger.info("Cache hit for question: '%s'", question)
+                    
+                    # Log this specific turn to the conversation history
+                    query_doc = {
+                        "organization_id": log_org_id,
+                        "user_id": user_id,
+                        "conversation_id": convo_id,
+                        "question": question,
+                        "answer": ans,
+                        "category": cached_query.get("category", "general"),
+                        "sources": cached_query.get("sources", []),
+                        "confidence": 0.99,
+                        "response_time_ms": int((time.time() - t0) * 1000),
+                        "timestamp": datetime.utcnow().isoformat() + "Z"
+                    }
+                    await mongodb.db.queries.insert_one(query_doc)
+                    
                     return {
                         "answer": ans,
                         "sources": cached_query.get("sources", []),
@@ -313,27 +329,7 @@ async def handle_query(
 
         # 4. Build prompt
         prompt, used_chunks = build_prompt(question, chunks)
-
-        # 5. Generate answer
-        answer, _llm_ms = await generate_answer(prompt)
-
-        # 6. Log to MongoDB
-        total_ms = int((time.time() - t0) * 1000)
-        await log_query(
-            organization_id=log_org_id or "",
-            user_id=user_id,
-            question=question,
-            answer=answer,
-            category=category,
-            sources=used_chunks,
-            response_time_ms=total_ms,
-            conversation_id=convo_id,
-        )
-
-        # 7. Confidence = mean similarity score of top-3 retrieved chunks
-        top_scores = [c["score"] for c in chunks[:3]]
-        confidence = round(sum(top_scores) / len(top_scores), 4) if top_scores else 0.0
-
+        
         # Deduplicate sources for the frontend by source_name
         unique_sources = []
         seen_sources = set()
@@ -341,6 +337,40 @@ async def handle_query(
             if src["source_name"] not in seen_sources:
                 unique_sources.append(src)
                 seen_sources.add(src["source_name"])
+
+        # 5. Log to MongoDB IMMEDIATELY so frontend shows the transcription
+        query_doc = {
+            "organization_id": log_org_id or "",
+            "user_id": user_id,
+            "conversation_id": convo_id,
+            "question": question,
+            "answer": "Thinking...",
+            "category": category,
+            "sources": unique_sources,
+            "confidence": 0.0,
+            "response_time_ms": 0,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+        insert_result = await mongodb.db.queries.insert_one(query_doc)
+        query_id = insert_result.inserted_id
+
+        # 6. Generate answer
+        answer, _llm_ms = await generate_answer(prompt)
+
+        # 7. Update MongoDB with real answer
+        total_ms = int((time.time() - t0) * 1000)
+        
+        top_scores = [c["score"] for c in chunks[:3]]
+        confidence = round(sum(top_scores) / len(top_scores), 4) if top_scores else 0.0
+
+        await mongodb.db.queries.update_one(
+            {"_id": query_id},
+            {"$set": {
+                "answer": answer,
+                "confidence": confidence,
+                "response_time_ms": total_ms
+            }}
+        )
 
         return {
             "answer": answer,

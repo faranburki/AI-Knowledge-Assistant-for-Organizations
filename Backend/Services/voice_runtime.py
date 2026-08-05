@@ -11,6 +11,10 @@ from Backend.Services.vad import VoiceActivityDetector, Utterance
 logger = logging.getLogger(__name__)
 
 class VoiceSessionRuntime:
+    # Seconds after playback finishes during which mic input is still gated,
+    # so the tail of the AI's own speech cannot re-trigger a new turn.
+    ASSISTANT_ECHO_TAIL_SECONDS = 0.6
+
     def __init__(self, session_id: str, user_id: str, org_id: str, conversation_id: str, role: str, subscribed_org_ids: list, embedding_model: Any):
         self.session_id = session_id
         self.user_id = user_id
@@ -28,11 +32,16 @@ class VoiceSessionRuntime:
         self.pc = None
         
         # VAD & Utterances
-        self.vad = VoiceActivityDetector(energy_threshold=300.0, silence_duration_seconds=1.0)
+        self.vad = VoiceActivityDetector(energy_threshold=400.0, silence_duration_seconds=1.0)
         self.latest_utterance: Optional[Utterance] = None
         self.latest_transcript: Optional[str] = None
         self.latest_response: Optional[str] = None
         self.latest_audio: Optional[bytes] = None
+
+        # Half-duplex playback gate: True while a TTS clip is queued/playing.
+        self._assistant_active = False
+        # Timestamp before which mic frames are ignored after playback ends.
+        self._vad_armed_at: Optional[float] = None
         
         self.metrics = {
             "stt_latency_ms": 0,
@@ -49,45 +58,21 @@ class VoiceSessionRuntime:
         self.audio_in_queue = asyncio.Queue()
         self.transcript_queue = asyncio.Queue()
         self.llm_response_queue = asyncio.Queue()
-        self.audio_out_queue = asyncio.Queue()
+        # Bounded: if the client stops consuming (e.g. transport down), stale
+        # clips are dropped instead of accumulating unbounded memory.
+        self.audio_out_queue = asyncio.Queue(maxsize=4)
         
         self._tasks = []
         self._is_running = False
 
-    def process_audio_frame(self, frame):
-        """Called directly by the WebRTC Transport when a raw audio frame arrives."""
-        utterance = self.vad.process_frame(frame)
-        if utterance:
-            logger.info(f"[{self.session_id}] VAD emitted complete utterance!")
-            logger.info(f"  -> Duration: {utterance.duration_ms:.1f}ms")
-            logger.info(f"  -> Frames collected: {utterance.frame_count}")
-            
-            self.latest_utterance = utterance
-            self.state = VoiceRuntimeState.TRANSCRIBING
-            
-            async def _transcribe_task():
-                try:
-                    logger.info(f"[{self.session_id}] Transcribing...")
-                    wav_bytes = utterance.to_wav_bytes()
-                    transcript = await transcribe_audio_bytes(wav_bytes)
-                    
-                    if transcript:
-                        logger.info(f"[{self.session_id}] Transcript: \"{transcript}\"")
-                        self.latest_transcript = transcript
-                        await self.transcript_queue.put(transcript)
-                    else:
-                        logger.info(f"[{self.session_id}] Transcript was empty or unintelligible.")
-                        self.state = VoiceRuntimeState.LISTENING
-                except Exception as e:
-                    logger.error(f"[{self.session_id}] Transcription error: {e}")
-                finally:
-                    self.state = VoiceRuntimeState.LISTENING
-            
-            asyncio.create_task(_transcribe_task())
-
     def start(self):
         if self._is_running: return
         self._is_running = True
+
+        # Reset half-duplex gate and VAD state for a fresh session
+        self._assistant_active = False
+        self._vad_armed_at = None
+        self.vad.reset()
         self.state = VoiceRuntimeState.IDLE
         self._tasks.append(asyncio.create_task(self._stt_worker()))
         self._tasks.append(asyncio.create_task(self._llm_worker()))
@@ -97,6 +82,19 @@ class VoiceSessionRuntime:
     async def touch(self):
         """Update last activity heartbeat."""
         self.last_activity = time.time()
+
+    def set_assistant_active(self, active: bool):
+        """
+        Half-duplex gate: True while a TTS clip is queued or playing, so the
+        assistant can never be re-triggered by its own playback (echo feedback).
+        When released, mic input stays gated for a short echo tail.
+        """
+        self._assistant_active = bool(active)
+        if active:
+            self._vad_armed_at = None
+            self.vad.reset()
+        else:
+            self._vad_armed_at = time.time() + self.ASSISTANT_ECHO_TAIL_SECONDS
 
     def disconnect(self):
         """Handle a transport disconnect event."""
@@ -134,8 +132,8 @@ class VoiceSessionRuntime:
         
         # 5. Update Mongo
         try:
-            from Backend.Services.voice_session_service import update_voice_session_status
-            await update_voice_session_status(self.session_id, "ENDED")
+            from Backend.Services.voice_session_service import end_session
+            await end_session(self.session_id)
             logger.info(f"[{self.session_id}] Updated DB state to ENDED")
         except Exception as e:
             logger.warning(f"[{self.session_id}] Failed to update DB state: {e}")
@@ -144,9 +142,39 @@ class VoiceSessionRuntime:
         logger.info(f"[{self.session_id}] Destroyed. Duration: {int(duration)}s, STT: {self.metrics['stt_count']}, LLM: {self.metrics['llm_count']}, TTS: {self.metrics['tts_count']}")
 
 
+    def process_audio_frame(self, frame):
+        """
+        Called continuously by the WebRTC transport for every mic frame.
+        Routes frames through the adaptive VAD; completed utterances are
+        submitted to the STT pipeline.
+        Half-duplex: while the assistant is speaking (or during the echo
+        tail), mic frames are dropped so playback can never re-trigger.
+        """
+        if self._assistant_active:
+            return
+
+        if self._vad_armed_at is not None:
+            if time.time() < self._vad_armed_at:
+                return
+            self._vad_armed_at = None
+
+        utterance = self.vad.process_frame(frame)
+        if utterance:
+            logger.info(f"[{self.session_id}] VAD emitted complete utterance "
+                        f"({utterance.duration_ms:.0f}ms, {utterance.frame_count} frames)")
+            self.latest_utterance = utterance
+            self.state = VoiceRuntimeState.TRANSCRIBING
+            wav_bytes = utterance.to_wav_bytes()
+            asyncio.create_task(self.submit_audio(wav_bytes))
+            # Lock the mic immediately: from the instant the user's sentence
+            # is handed to the pipeline, no further mic data is accepted until
+            # the assistant's speech has fully finished playing.
+            self.set_assistant_active(True)
+
+
     async def submit_audio(self, audio_bytes: bytes):
         """External entry point for audio buffers."""
-        self.touch()
+        await self.touch()
         await self.audio_in_queue.put(audio_bytes)
         self.state = VoiceRuntimeState.LISTENING
 
@@ -154,24 +182,25 @@ class VoiceSessionRuntime:
         while self._is_running:
             try:
                 audio_bytes = await self.audio_in_queue.get()
-                self.touch()
+                await self.touch()
                 self.state = VoiceRuntimeState.TRANSCRIBING
                 
                 t0 = time.time()
                 transcript = await transcribe_audio_bytes(audio_bytes)
                 latency = int((time.time() - t0) * 1000)
                 
-                self.metrics["llm_latency_ms"] = latency
-                self.metrics["llm_count"] += 1
-                self.touch()
+                self.metrics["stt_latency_ms"] = latency
                 self.metrics["stt_count"] += 1
-                self.touch()
+                await self.touch()
                 logger.info(f"[{self.session_id}] STT complete: '{transcript}' in {latency}ms")
                 
                 if transcript and transcript.strip():
                     await self.transcript_queue.put(transcript.strip())
                 else:
                     self.state = VoiceRuntimeState.IDLE
+                    # No speech will be generated for this capture; re-open
+                    # the mic so the session does not stay muted.
+                    self.set_assistant_active(False)
                 
                 self.audio_in_queue.task_done()
             except asyncio.CancelledError:
@@ -179,6 +208,7 @@ class VoiceSessionRuntime:
             except Exception as e:
                 logger.error(f"[{self.session_id}] STT Worker error: {e}")
                 self.state = VoiceRuntimeState.IDLE
+                self.set_assistant_active(False)
 
     async def _llm_worker(self):
         while self._is_running:
@@ -234,8 +264,27 @@ class VoiceSessionRuntime:
                 self.state = VoiceRuntimeState.GENERATING_SPEECH
                 logger.info(f"[{self.session_id}] Generating speech...")
                 
+                # Generate with one retry: transient pyttsx3/subprocess failures
+                # must not silently drop the AI response.
+                audio_bytes = None
                 t0 = time.time()
-                audio_bytes = await generate_speech_bytes(text)
+                for attempt in range(1, 3):
+                    try:
+                        audio_bytes = await generate_speech_bytes(text)
+                        break
+                    except Exception as e:
+                        logger.error(f"[{self.session_id}] TTS attempt {attempt} failed: {e}")
+                        audio_bytes = None
+                
+                self.llm_response_queue.task_done()
+                
+                if audio_bytes is None:
+                    logger.error(f"[{self.session_id}] TTS failed after retries; response spoken as text only.")
+                    self.state = VoiceRuntimeState.LISTENING
+                    # No clip will play for this turn; release the mic lock.
+                    self.set_assistant_active(False)
+                    continue
+                
                 latency = int((time.time() - t0) * 1000)
                 
                 self.metrics["tts_latency_ms"] = latency
@@ -266,10 +315,22 @@ class VoiceSessionRuntime:
                 
                 self.latest_audio = audio_bytes
                 
-                # Phase 11: Push to audio_out_queue, keep state as GENERATING_SPEECH.
-                await self.audio_out_queue.put(audio_bytes)
+                # Gate the mic while this clip is (or will be) playing, so the
+                # assistant can never be triggered by its own voice.
+                self.set_assistant_active(True)
                 
-                self.llm_response_queue.task_done()
+                # Bounded push: drop the oldest clip if the transport has
+                # stopped consuming, instead of blocking or growing unbounded.
+                try:
+                    self.audio_out_queue.put_nowait(audio_bytes)
+                except asyncio.QueueFull:
+                    try:
+                        dropped = self.audio_out_queue.get_nowait()
+                        self.audio_out_queue.task_done()
+                        logger.warning(f"[{self.session_id}] audio_out_queue full; dropped stale clip ({len(dropped)} bytes)")
+                    except asyncio.QueueEmpty:
+                        pass
+                    self.audio_out_queue.put_nowait(audio_bytes)
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -283,10 +344,14 @@ class VoiceSessionRuntime:
         return audio_bytes
         
     def mark_audio_complete(self):
-        """Called by WebRTC transport when streaming finishes."""
+        """Called by WebRTC transport when a clip's playback finishes."""
         self.state = VoiceRuntimeState.LISTENING
-        self.audio_out_queue.task_done()
         self.latest_audio = None
+        self.audio_out_queue.task_done()
+        # Only re-open the mic if no further clip is queued; otherwise the
+        # assistant is still talking and must remain gated.
+        if self.audio_out_queue.empty():
+            self.set_assistant_active(False)
 
 
 class VoiceRuntimeManager:

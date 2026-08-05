@@ -162,10 +162,28 @@ const API = {
     return this._req('GET', '/query/analytics');
   },
 
+  getConversationHistory(conversation_id) {
+    return this._req('GET', `/query/conversation/${conversation_id}`);
+  },
+
   // ── Health ────────────────────────────────────────────────
   health() { return this._req('GET', '/health'); },
 
   // ── Voice ─────────────────────────────────────────────────
+  createVoiceSession(organization_id, conversation_id = null) {
+    const payload = {
+      organization_id,
+      conversation_id,
+      session_type: "push_to_talk",
+      agent_id: null
+    };
+    return this._req('POST', '/voice-sessions/', payload);
+  },
+
+  endVoiceSession(session_id) {
+    return this._req('POST', `/voice-sessions/${session_id}/end`);
+  },
+
   generateVoice(text) {
     const url = (API_BASE || '') + '/voice/generate';
     const headers = { 'Content-Type': 'application/json' };

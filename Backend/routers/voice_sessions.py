@@ -46,9 +46,9 @@ async def create_voice_session(
             session_id=session_doc["session_id"],
             user_id=current_user["user_id"],
             org_id=request.organization_id,
-            conversation_id=request.conversation_id,
+            conversation_id=session_doc["conversation_id"],
             role=current_user["role"],
-            subscribed_org_ids=current_user["subscribed_org_ids"],
+            subscribed_org_ids=current_user.get("subscribed_org_ids", []),
             embedding_model=http_request.app.state.embedding_model
         )
         

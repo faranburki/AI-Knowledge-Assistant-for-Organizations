@@ -30,7 +30,7 @@ class VoiceSessionType(str, Enum):
 class VoiceSessionCreate(BaseModel):
     """Schema for initializing a new voice session."""
     organization_id: str
-    conversation_id: str
+    conversation_id: Optional[str] = None
     session_type: VoiceSessionType = VoiceSessionType.PUSH_TO_TALK
     agent_id: Optional[str] = None
 

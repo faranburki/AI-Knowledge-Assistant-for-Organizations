@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/design-system.css">
 <link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/voice.css">
 </head>
 <body>
 
@@ -38,11 +39,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
         <span>Agents</span>
       </div>
-      <div class="nav-item nav-org-only" data-page="knowledge" onclick="navigate('knowledge')">
+      <div class="nav-item nav-org-only" data-page="documents" onclick="navigate('documents')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <span>Knowledge Base</span>
       </div>
-      <div class="nav-item" data-page="conversations" onclick="navigate('conversations')">
+      <div class="nav-item" data-page="chat" onclick="navigate('chat')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Conversations</span>
       </div>
@@ -54,7 +55,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
         <span>Analytics</span>
       </div>
-      <div class="nav-item" data-page="settings" onclick="navigate('settings')">
+      <div class="nav-item" data-page="admin" onclick="navigate('admin')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         <span>Settings</span>
       </div>
@@ -289,6 +290,96 @@
       <div id="adminContent"></div>
     </div>
   </div>
+  <!-- PAGE: Dashboard (Coming Soon) -->
+  <div class="page hidden" id="page-dashboard">
+    <div class="empty-state" style="margin-top:100px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;color:var(--text-tertiary);margin-bottom:16px;"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      <h3>Organization Dashboard</h3>
+      <p>High-level overview coming soon.</p>
+    </div>
+  </div>
+
+  <!-- PAGE: Agents (Coming Soon) -->
+  <div class="page hidden" id="page-agents">
+    <div class="empty-state" style="margin-top:100px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;color:var(--text-tertiary);margin-bottom:16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      <h3>Agent Management</h3>
+      <p>Coming Soon</p>
+    </div>
+  </div>
+
+  <!-- PAGE: Voice -->
+  <div class="page hidden" id="page-voice">
+    <div class="voice-layout">
+      
+      <!-- Left Panel: Controls & Status -->
+      <div class="voice-panel-controls">
+        
+        <!-- Connect / Disconnect Actions -->
+        <div class="voice-controls-actions">
+          <button id="btnVoiceConnect" class="btn btn-primary" style="flex:1;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+            Connect
+          </button>
+          <button id="btnVoiceDisconnect" class="btn btn-secondary" style="flex:1; display:none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+            Disconnect
+          </button>
+        </div>
+
+        <!-- Agent Visual Orb -->
+        <div class="voice-orb-container">
+          <div class="voice-orb" id="voiceOrb"></div>
+        </div>
+
+        <!-- Status Card -->
+        <div class="voice-status-card">
+          <div class="voice-status-row">
+            <span class="voice-status-label">Status</span>
+            <span class="voice-status-value" id="voiceStatusText">Disconnected</span>
+          </div>
+          <div class="voice-status-row">
+            <span class="voice-status-label">Agent</span>
+            <span class="voice-status-value">Default AI</span>
+          </div>
+          <div class="voice-status-row">
+            <span class="voice-status-label">Duration</span>
+            <span class="voice-status-value" id="voiceDuration">00:00</span>
+          </div>
+          
+          <!-- Microphone Level Placeholder -->
+          <div class="voice-mic-level" title="Microphone Level">
+            <div class="voice-mic-level-bar" id="voiceMicLevel"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Panel: Transcript -->
+      <div class="voice-panel-transcript">
+        <div class="transcript-header">
+          <span>Live Transcript</span>
+          <button class="btn-icon btn-ghost" data-tooltip="Clear Transcript" id="btnClearTranscript">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        </div>
+
+        <div class="transcript-body" id="voiceTranscriptBody">
+          <!-- Placeholders for initial state -->
+          <div style="text-align:center; color:var(--text-tertiary); margin-top:40px; font-size:0.9rem;">
+            Connect to start speaking...
+          </div>
+        </div>
+
+        <!-- AI Synthesis Active Indicator Placeholder -->
+        <div class="ai-synthesis-area" id="voiceSynthesisArea" style="display:none;">
+          <div class="ai-synthesis-indicator"></div>
+          <span>AI is thinking and synthesizing response...</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div><!-- /main-content -->
 </div><!-- /app-shell -->
 
@@ -408,31 +499,15 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- PAGE: Agents (Coming Soon) -->
-<div class="page hidden" id="page-agents">
-  <div class="empty-state" style="margin-top:100px;">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;color:var(--text-tertiary);margin-bottom:16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-    <h3>Agent Management</h3>
-    <p>Coming Soon</p>
-  </div>
-</div>
-
-<!-- PAGE: Voice (Coming Soon) -->
-<div class="page hidden" id="page-voice">
-  <div class="empty-state" style="margin-top:100px;">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;color:var(--text-tertiary);margin-bottom:16px;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-    <h3>Voice Agents</h3>
-    <p>Coming Soon</p>
-  </div>
-</div>
-
-<script src="js/api.js?v=1.2.0"></script>
-<script src="js/core.js?v=1.2.0"></script>
-<script src="js/subscriptions.js?v=1.2.0"></script>
-<script src="js/chat.js?v=1.2.0"></script>
-<script src="js/documents.js?v=1.2.0"></script>
-<script src="js/pages.js?v=1.2.0"></script>
+<script src="js/api.js"></script>
+<script src="js/core.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/documents.js"></script>
+<script src="js/org.js"></script>
+<script src="js/team.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/voice_app.js"></script>
 </body>
 </html>
-
-
