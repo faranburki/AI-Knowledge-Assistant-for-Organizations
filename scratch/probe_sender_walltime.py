@@ -1,5 +1,4 @@
-"""Probe: wall-time behaviour of the real-paced TTSAudioTrack (like the
-aiortc sender loop does) and of aiortc's Opus encoder path."""
+"""Probe: wall-time rate of the real-paced TTSAudioTrack."""
 import asyncio
 import io
 import os
@@ -33,36 +32,21 @@ async def main():
     await rt.audio_out_queue.put(audio)
     track = TTSAudioTrack(rt)
 
-    # --- track-only wall time ---
+    # read only the clip: stop once mark_audio_complete fired at least once
+    complete_at = None
     t0 = time.time()
-    frames = 0
-    nframes = 0
+    n = 0
     while time.time() - t0 < dur * 2:
         f = await track.recv()
-        if rt.audio_out_queue.qsize() == 0 and nframes and frames > 0:
-            pass
-        nframes += 1
-        if nframes > 500:
+        n += 1
+        if rt.audio_out_queue.qsize() == 0 and complete_at is None and n > 200:
+            # qsize 0 after clip pulled means the clip was consumed entirely
+            complete_at = time.time() - t0
             break
+    # count frames until buffer drained actually: simpler, just run dur+0.2s
+    # and frame-rate averages
     wall = time.time() - t0
-    print(f"track-only: {nframes} frames in {wall:.2f}s (expect ~{dur:.2f}s)")
-
-    # --- aiortc Opus encoder behaviour on the same frames ---
-    from aiortc.codecs import get_encoder
-    from aiortc.rtcrtpparameters import RTCRtpCodecParameters
-    from aiortc.rtp import rtp_utils
-
-    enc = get_encoder(RTCRtpCodecParameters(mimeType="audio/opus"))
-    t0 = time.time()
-    done = 0
-    for _ in range(255):
-        f = await track.recv()
-        payloads, timestamp = await asyncio.get_event_loop().run_in_executor(
-            None, enc.encode, f, False
-        )
-        done += 1 if payloads else 0
-    wall2 = time.time() - t0
-    print(f"sender path: 255 frames in {wall2:.2f}s, encoded payloads={done}")
+    print(f"frames read: {n} in {wall:.2f}s -> {n / wall:.1f} fps (target 50)")
     await rt.shutdown()
 
 

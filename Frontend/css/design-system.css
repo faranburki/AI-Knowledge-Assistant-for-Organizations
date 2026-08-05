@@ -283,7 +283,8 @@ img, svg { display: block; }
 .table-wrap {
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg-elevated);
 }
 .table {
@@ -650,3 +651,36 @@ img, svg { display: block; }
 
 /* ── Selection ───────────────────────────────────────────────── */
 ::selection { background: var(--accent-light); color: var(--accent); }
+
+/* ── Responsive Overrides ────────────────────────────────────── */
+@media (max-width: 1024px) {
+  :root {
+    --sp-16: 48px;
+    --sp-12: 32px;
+    --sp-10: 24px;
+    --sp-8: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sp-16: 32px;
+    --sp-12: 24px;
+    --sp-10: 20px;
+    --text-3xl: 28px;
+    --text-2xl: 24px;
+    --text-xl: 20px;
+  }
+  
+  /* Touch target optimizations */
+  .btn:not(.btn-sm), .input {
+    min-height: 44px;
+  }
+}
+
+/* Responsive Table Wrapper */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

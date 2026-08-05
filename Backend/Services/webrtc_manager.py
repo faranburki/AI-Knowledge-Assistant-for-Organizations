@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import json
+import time
 from typing import Dict, Any
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
 from aiortc.mediastreams import MediaStreamTrack
@@ -43,6 +44,7 @@ class TTSAudioTrack(MediaStreamTrack):
         self._pts = 0
         self._audio_buffer = bytearray()
         self._clip_finishing = False
+        self._pace_anchor = None
 
     def _make_silence_frame(self):
         silence = av.AudioFrame(format="s16", layout="stereo", samples=self.FRAME_SIZE)
@@ -54,8 +56,26 @@ class TTSAudioTrack(MediaStreamTrack):
         return silence
 
     async def _pace(self):
-        """Throttle the sender to real time (20 ms per frame)."""
-        await asyncio.sleep(0.02)
+        """
+        Throttle the sender to real time (one frame per 20 ms) using a
+        deadline grid rather than a fixed sleep.
+
+        On Windows, asyncio.sleep() quantizes to the OS timer tick (~15.6ms),
+        so sleep(0.02) actually blocks ~31ms -> the stream runs ~1.5x slower
+        than real time and the client's jitter buffer drains (stutter). With a
+        deadline grid the effective average rate stays 50 fps regardless of
+        sleep granularity: a sleep that overshoots is compensated by the next
+        frame(s) being delivered without sleeping.
+        """
+        now = time.monotonic()
+        if self._pace_anchor is None:
+            self._pace_anchor = now
+            return
+        await asyncio.sleep(0.0)
+        self._pace_anchor += 0.02
+        remaining = self._pace_anchor - time.monotonic()
+        if remaining > 0:
+            await asyncio.sleep(remaining)
 
     def _open_clip(self) -> bool:
         """Try to open the next queued clip. Returns True on success."""

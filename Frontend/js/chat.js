@@ -14,6 +14,11 @@ function startNewChat() {
   
   // Clear active sidebar selections
   document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active'));
+  
+  if (window.innerWidth <= 768) {
+    const sidebar = document.getElementById('chatSidebar');
+    if (sidebar) sidebar.classList.remove('open');
+  }
 }
 
 function renderChatEmpty() {
@@ -224,6 +229,11 @@ async function selectHistoryItem(idx) {
   const msgs = document.getElementById('chatMessages');
   msgs.innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner" style="margin:0 auto"></div></div>';
   
+  if (window.innerWidth <= 768) {
+    const sidebar = document.getElementById('chatSidebar');
+    if (sidebar) sidebar.classList.remove('open');
+  }
+  
   try {
     const messages = await API.getConversation(item.query_id);
     msgs.innerHTML = '';
@@ -348,7 +358,11 @@ async function performDeleteChat() {
 function toggleChatSidebar() {
   const sidebar = document.getElementById('chatSidebar');
   if (sidebar) {
-    sidebar.classList.toggle('collapsed');
+    if (window.innerWidth <= 768) {
+      sidebar.classList.toggle('open');
+    } else {
+      sidebar.classList.toggle('collapsed');
+    }
   }
 }
 

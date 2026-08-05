@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="AI Knowledge Assistant — Enterprise knowledge management powered by AI">
-<title>Sign in — AI Knowledge Assistant</title>
+<meta name="description" content="AI Agent Platform — Enterprise agent deployment and management">
+<title>Sign in — AI Agent Platform</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/design-system.css">
@@ -19,35 +19,35 @@
       <div style="width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(37,99,235,0.3)">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </div>
-      <span style="font-weight:700;font-size:20px;letter-spacing:-.02em;color:var(--text-primary)">Knowledge AI</span>
+      <span style="font-weight:700;font-size:20px;letter-spacing:-.02em;color:var(--text-primary)">Agent Platform</span>
     </div>
     
     <div style="margin: 60px 0">
       <h1 style="font-size:42px;font-weight:700;letter-spacing:-.04em;line-height:1.1;color:var(--text-primary);margin-bottom:20px;max-width:480px">
-        Enterprise intelligence at your fingertips.
+        Build, deploy, and manage enterprise AI Agents.
       </h1>
       <p style="font-size:18px;color:var(--text-secondary);max-width:440px;line-height:1.6">
-        Upload organizational knowledge, ask complex questions, and get accurate, verifiable answers instantly.
+        Create intelligent text and voice agents, securely connect your organizational data, and monitor performance instantly.
       </p>
     </div>
 
     <ul class="auth-feature-list">
       <li>
-        <span class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
-        <div><strong>Multi-format ingestion</strong>Upload PDF, DOCX, PPTX, XLSX, CSV, and TXT files.</div>
+        <span class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg></span>
+        <div><strong>Omnichannel Agents</strong>Deploy AI across text and voice interfaces seamlessly.</div>
       </li>
       <li>
         <span class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-        <div><strong>Semantic search</strong>RAG pipeline finds relevant passages using vector similarity.</div>
+        <div><strong>Knowledge Integration</strong>Ground your agents with secure data sources and real-time APIs.</div>
       </li>
       <li>
         <span class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-        <div><strong>Public &amp; private docs</strong>Organizations share public knowledge; workspaces keep private data.</div>
+        <div><strong>Enterprise Security</strong>Public models and private workspace boundaries.</div>
       </li>
     </ul>
     
     <div style="margin-top:40px;font-size:13px;color:var(--text-tertiary)">
-      &copy; 2026 Knowledge AI Inc. All rights reserved.
+      &copy; 2026 AI Agent Platform Inc. All rights reserved.
     </div>
   </div>
 
@@ -83,7 +83,7 @@
     <!-- Workspace Register Form -->
     <div class="auth-card hidden" id="registerWorkspaceForm">
       <div class="auth-logo">Create workspace</div>
-      <div class="auth-subtitle">For teams managing their own knowledge base</div>
+      <div class="auth-subtitle">For teams building and managing AI agents</div>
       <div class="auth-type-tabs">
         <button type="button" class="auth-type-tab active" onclick="switchRegisterType('workspace')">Workspace</button>
         <button type="button" class="auth-type-tab" onclick="switchRegisterType('public')">Public user</button>
@@ -116,13 +116,13 @@
     <!-- Public User Register Form -->
     <div class="auth-card hidden" id="registerPublicForm">
       <div class="auth-logo">Create public account</div>
-      <div class="auth-subtitle">Browse and query public documents from organizations you follow</div>
+      <div class="auth-subtitle">Interact with public AI agents from organizations you follow</div>
       <div class="auth-type-tabs">
         <button type="button" class="auth-type-tab" onclick="switchRegisterType('workspace')">Workspace</button>
         <button type="button" class="auth-type-tab active" onclick="switchRegisterType('public')">Public user</button>
       </div>
       <div class="auth-type-hint">
-        No workspace is created. After sign-up, choose which organizations to subscribe to and query only their <strong>public</strong> documents.
+        No workspace is created. After sign-up, choose which organizations to subscribe to and interact with their <strong>public</strong> agents.
       </div>
       <form class="auth-form" onsubmit="handleRegisterPublic(event)">
         <div class="input-group">

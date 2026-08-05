@@ -137,7 +137,7 @@ async function loadHistory() {
       el.innerHTML = '<div class="empty-state"><div style="width:48px;height:48px;background:var(--bg-secondary);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px;color:var(--text-tertiary)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3 style="font-size:18px">No history found</h3><p style="color:var(--text-secondary)">Your organization hasn\'t asked any questions yet.</p></div>';
       return;
     }
-    el.innerHTML = `<div class="table-wrap" style="box-shadow:0 2px 8px rgba(0,0,0,0.02)"><table class="table">
+    el.innerHTML = `<div class="table-responsive"><div class="table-wrap" style="box-shadow:0 2px 8px rgba(0,0,0,0.02)"><table class="table">
       <thead><tr><th>Question & Answer Preview</th><th>Category</th><th>Performance</th><th>Date</th></tr></thead>
       <tbody>${items.map(q => `<tr>
         <td style="max-width:500px">
@@ -152,7 +152,7 @@ async function loadHistory() {
           </div>
         </td>
         <td style="font-size:13px;color:var(--text-tertiary)">${timeAgo(q.timestamp)}</td>
-      </tr>`).join('')}</tbody></table></div>`;
+      </tr>`).join('')}</tbody></table></div></div>`;
   } catch (err) {
     el.innerHTML = `<div class="empty-state"><h3 class="text-error">Error loading history</h3><p>${err.message}</p></div>`;
   }
@@ -249,11 +249,11 @@ function renderAdminTab(tab) {
       <div style="padding:24px;display:flex;flex-direction:column;gap:20px">
         <div class="input-group">
           <label style="font-size:13px">Full Name</label>
-          <input class="input" value="${escapeHtml(user.full_name||'')}" readonly style="background:var(--bg-secondary)">
+          <input id="profileName" class="input" value="${escapeHtml(user.full_name||'')}">
         </div>
         <div class="input-group">
           <label style="font-size:13px">Email Address</label>
-          <input class="input" value="${escapeHtml(user.email||'')}" readonly style="background:var(--bg-secondary)">
+          <input id="profileEmail" class="input" type="email" value="${escapeHtml(user.email||'')}">
         </div>
         <div class="input-group">
           <label style="font-size:13px">Role</label>
@@ -261,75 +261,11 @@ function renderAdminTab(tab) {
         </div>
       </div>
       <div style="padding:16px 24px;background:var(--bg-secondary);border-top:1px solid var(--border-primary);display:flex;justify-content:flex-end">
-        <button class="btn btn-primary" disabled>Save Changes</button>
+        <button class="btn btn-primary" onclick="saveProfileSettings(this)">Save Changes</button>
       </div>
     </div>`;
-  } else if (tab === 'api') {
-    el.innerHTML = `<div class="card" style="max-width:640px;box-shadow:0 4px 12px rgba(0,0,0,0.02)">
-      <div style="padding:24px;border-bottom:1px solid var(--border-primary)">
-        <h3 style="font-size:16px;font-weight:600">API Access</h3>
-        <p style="font-size:13px;color:var(--text-secondary);margin-top:4px">Manage your API keys for programmatic access.</p>
-      </div>
-      <div style="padding:24px;display:flex;flex-direction:column;gap:24px">
-        <div class="input-group">
-          <label style="font-size:13px;font-weight:600">API Base URL</label>
-          <input class="input text-mono" value="${location.origin}" readonly style="background:var(--bg-secondary);font-size:13px">
-        </div>
-        <div class="input-group">
-          <label style="font-size:13px;font-weight:600;display:flex;justify-content:space-between">
-            <span>Personal Access Token</span>
-            <span class="badge badge-green">Active</span>
-          </label>
-          <div style="display:flex;gap:8px">
-            <input class="input text-mono" value="${API._token().substring(0,32)}...${API._token().substring(API._token().length-8)}" readonly style="flex:1;background:var(--bg-secondary);font-size:13px">
-            <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(API._token());showToast('Token copied to clipboard','success')">Copy</button>
-          </div>
-          <p style="font-size:12px;color:var(--text-tertiary);margin-top:8px">Use this token in the <code style="background:var(--bg-tertiary);padding:2px 4px;border-radius:4px;font-family:var(--font-mono)">Authorization</code> header as <code style="background:var(--bg-tertiary);padding:2px 4px;border-radius:4px;font-family:var(--font-mono)">Bearer &lt;token&gt;</code></p>
-        </div>
-      </div>
-    </div>`;
-  } else if (tab === 'health') {
-    el.innerHTML = '<div class="card" style="max-width:640px"><div style="padding:40px;display:flex;justify-content:center"><div class="spinner"></div></div></div>';
-    API.health().then(h => {
-      el.innerHTML = `<div class="card" style="max-width:640px;box-shadow:0 4px 12px rgba(0,0,0,0.02)">
-        <div style="padding:24px;border-bottom:1px solid var(--border-primary)">
-          <h3 style="font-size:16px;font-weight:600">System Health Monitor</h3>
-        </div>
-        <div style="padding:24px;display:flex;flex-direction:column;gap:20px">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--success-muted);border:1px solid #a7f3d0;border-radius:12px">
-            <div style="display:flex;align-items:center;gap:12px">
-              <div style="width:12px;height:12px;border-radius:50%;background:var(--success);box-shadow:0 0 0 4px rgba(16,185,129,0.2)"></div>
-              <span style="font-weight:600;color:#065f46;font-size:15px">All Systems Operational</span>
-            </div>
-            <span style="font-size:12px;color:#047857;font-weight:500">Updated just now</span>
-          </div>
-          
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-            <div style="border:1px solid var(--border-primary);padding:16px;border-radius:12px">
-              <div style="font-size:12px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.05em">API Service</div>
-              <div style="font-family:var(--font-mono);font-size:14px;font-weight:600;margin-top:8px">${h.status}</div>
-            </div>
-            <div style="border:1px solid var(--border-primary);padding:16px;border-radius:12px">
-              <div style="font-size:12px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Database Layer</div>
-              <div style="font-family:var(--font-mono);font-size:14px;font-weight:600;margin-top:8px;color:var(--success)">Connected</div>
-            </div>
-          </div>
-        </div>
-      </div>`;
-    }).catch(err => {
-      el.innerHTML = `<div class="card" style="max-width:640px">
-        <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
-          <div style="display:flex;align-items:center;padding:16px;background:var(--error-muted);border:1px solid #fecaca;border-radius:12px;gap:12px">
-            <div style="width:12px;height:12px;border-radius:50%;background:var(--error)"></div>
-            <div>
-              <div style="font-weight:600;color:#991b1b;font-size:15px">System Unreachable</div>
-              <div style="font-size:13px;color:#b91c1c;margin-top:4px">${err.message}</div>
-            </div>
-          </div>
-        </div>
-      </div>`;
-    });
   } else if (tab === 'audit') {
+
     el.innerHTML = `<div class="card" style="max-width:640px;box-shadow:0 4px 12px rgba(0,0,0,0.02)">
       <div style="padding:24px;border-bottom:1px solid var(--border-primary)">
         <h3 style="font-size:16px;font-weight:600">Security Audit Log</h3>
@@ -404,8 +340,7 @@ async function loadOrgUsers() {
             `).join('')}
           </tbody>
         </table>
-      </div>
-    `;
+      </div></div>`;
   } catch (err) {
     listEl.innerHTML = `<div style="padding:32px;text-align:center;color:var(--error);font-size:12px;">Failed to load team members: ${err.message}</div>`;
   }

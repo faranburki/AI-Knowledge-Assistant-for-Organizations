@@ -75,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   setupKeyboardShortcuts();
   buildCommandList();
-  if (window.innerWidth <= 768) document.getElementById('mobileMenuBtn').style.display = 'block';
 });
 
 function updateSidebarForRole() {
@@ -107,7 +106,7 @@ async function loadOrgName() {
 }
 
 // ── Navigation ──────────────────────────────────────────────
-const pageNames = { dashboard: 'Dashboard', chat:'Conversations', agents:'Agents', documents:'Knowledge Base', voice:'Voice Agents', analytics:'Analytics', admin:'Settings', subscriptions:'Subscriptions', org:'Organization', team:'Team Members' };
+const pageNames = { dashboard: 'Overview', chat:'Conversations', agents:'Agents', documents:'Knowledge Sources', voice:'Voice', analytics:'Analytics', admin:'Settings', subscriptions:'Subscriptions', org:'Organization', team:'Team Members' };
 
 function navigate(page) {
   currentPage = page;
@@ -156,8 +155,8 @@ function showToast(msg, type = 'info') {
 
 // ── Command Palette ─────────────────────────────────────────
 const commands = [
-  { label: 'Ask AI', page: 'chat', key: '1' },
-  { label: 'Documents', page: 'documents', key: '2' },
+  { label: 'Conversations', page: 'chat', key: '1' },
+  { label: 'Knowledge Sources', page: 'documents', key: '2' },
   { label: 'Analytics', page: 'analytics', key: '3' },
   { label: 'Query History', page: 'history', key: '4' },
   { label: 'Organization', page: 'org', key: '5' },

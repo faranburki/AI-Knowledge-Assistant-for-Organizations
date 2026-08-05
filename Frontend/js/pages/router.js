@@ -1,11 +1,11 @@
 export const Router = {
   currentPage: 'dashboard',
   routes: {
-    dashboard: { id: 'page-chat', label: 'Dashboard' },
+    dashboard: { id: 'page-chat', label: 'Overview' },
     agents: { id: 'page-agents', label: 'Agents' },
-    knowledge: { id: 'page-documents', label: 'Knowledge Base' },
+    knowledge: { id: 'page-documents', label: 'Knowledge Sources' },
     conversations: { id: 'page-history', label: 'Conversations' },
-    voice: { id: 'page-voice', label: 'Voice Agents' },
+    voice: { id: 'page-voice', label: 'Voice' },
     analytics: { id: 'page-analytics', label: 'Analytics' },
     settings: { id: 'page-admin', label: 'Settings' }
   },

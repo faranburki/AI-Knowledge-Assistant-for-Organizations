@@ -67,3 +67,10 @@ Backend/scripts/test_audio/
 cleanup.py
 scaffold.py
 RRRR.pdf
+
+# Additional generated or scratch files
+scratch/
+notebooks/
+verify_rag.py
+test_extraction.py
+.pytest_cache/

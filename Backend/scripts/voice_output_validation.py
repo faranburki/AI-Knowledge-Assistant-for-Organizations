@@ -246,6 +246,7 @@ async def play_and_measure(rt, track, timeout_s=40):
     ticks = 0
     state_pts = {}
     completions = []
+    completions_elapsed = []
     pending_complete = 0
 
     orig_complete = rt.mark_audio_complete
@@ -270,6 +271,7 @@ async def play_and_measure(rt, track, timeout_s=40):
             # the pts of the fully-drained clip end.
             if pending_complete:
                 completions.append(f.pts)
+                completions_elapsed.append(time.time() - t0)
                 pending_complete = 0
             if rt.state.value not in state_pts:
                 state_pts[rt.state.value] = f.pts
@@ -277,8 +279,10 @@ async def play_and_measure(rt, track, timeout_s=40):
                 break
     finally:
         rt.mark_audio_complete = orig_complete
+    elapsed = time.time() - t0
     return {"delivered": delivered, "last_real_pts": last_real_pts,
-            "ticks": ticks, "state_pts": state_pts, "completions": completions}
+            "ticks": ticks, "state_pts": state_pts, "completions": completions,
+            "completions_elapsed": completions_elapsed, "elapsed": elapsed}
 
 
 async def test_completeness():
@@ -311,17 +315,26 @@ async def test_completeness():
               f"last_real@{stats['last_real_pts']})")
         await rt.shutdown()
 
-    # real-paced track (no pacing override): proves _pace() itself works
+    # real-paced track (no pacing override): proves _pace() itself works,
+    # both in content (completion pts) and in wall-clock rate (must be
+    # ~real-time, not slowed by Windows timer granularity)
     rt = make_runtime("paced")
     audio = await generate_speech_bytes("Pacing test clip.")
     truth = header_48k(audio)
     await rt.audio_out_queue.put(audio)
+    t_wall0 = time.time()
     stats = await play_and_measure(rt, TTSAudioTrack(rt))
+    wall = stats["elapsed"]
     clip_end = math.ceil(truth / 960) * 960
     comp = stats["completions"][-1] if stats["completions"] else None
+    clip_secs = truth / 48000
     check("real-paced track: complete fired at clip end",
           comp is not None and clip_end_matches(comp, truth),
           f"(header_end={clip_end} complete@{comp})")
+    comp_wall = stats["completions_elapsed"][-1] if stats["completions_elapsed"] else None
+    check("real-paced track: streamed at real-time rate",
+          comp_wall is not None and 0.8 * clip_secs <= comp_wall <= 1.3 * clip_secs,
+          f"(clip={clip_secs:.2f}s complete_wall={comp_wall:.2f}s)")
     await rt.shutdown()
     print()
 

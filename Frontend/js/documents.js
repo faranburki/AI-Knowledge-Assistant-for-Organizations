@@ -37,7 +37,7 @@ async function loadDocuments() {
       return;
     }
     empty.classList.add('hidden');
-    table.innerHTML = `<div class="table-wrap" style="box-shadow:0 2px 8px rgba(0,0,0,0.02)">
+    table.innerHTML = `<div class="table-responsive"><div class="table-wrap" style="box-shadow:0 2px 8px rgba(0,0,0,0.02)">
       <table class="table">
         <thead><tr>
           <th>Document Title & Name</th>
@@ -79,7 +79,7 @@ async function loadDocuments() {
           </td>` : ''}
         </tr>`).join('')}</tbody>
       </table>
-    </div>`;
+    </div></div>`;
   } catch (err) {
     table.innerHTML = `<div class="empty-state" style="border-color:#fecaca;background:var(--error-muted)"><h3 style="color:#991b1b">Failed to load knowledge base</h3><p style="color:#b91c1c">${err.message}</p></div>`;
   }
