@@ -53,3 +53,17 @@ test_mongo.py
 test_ingestion.py
 train_classifier.py
 dummy_test.txt
+
+# Vector DB & Storage
+chroma_data/
+.chroma/
+chroma.sqlite3
+mongodb_data/
+
+# Test Audio & Temporaries
+*.wav
+*.mp3
+Backend/scripts/test_audio/
+cleanup.py
+scaffold.py
+RRRR.pdf

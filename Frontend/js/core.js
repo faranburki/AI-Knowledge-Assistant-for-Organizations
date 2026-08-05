@@ -107,7 +107,7 @@ async function loadOrgName() {
 }
 
 // ── Navigation ──────────────────────────────────────────────
-const pageNames = { chat:'Ask AI', subscriptions:'Subscriptions', documents:'Documents', analytics:'Analytics', history:'Query History', org:'Organization', team:'Team Members', admin:'Settings' };
+const pageNames = { dashboard:'Dashboard', agents:'Agents', knowledge:'Knowledge Base', conversations:'Conversations', voice:'Voice Agents', analytics:'Analytics', settings:'Settings', chat:'Ask AI', subscriptions:'Subscriptions', documents:'Documents', history:'Query History', org:'Organization', team:'Team Members', admin:'Settings' };
 
 function navigate(page) {
   currentPage = page;
