@@ -63,6 +63,12 @@ async def ensure_mongo_indexes():
         await mongodb.db.documents.create_index("document_id", unique=True)
         logger.info("✅ Indexes on 'documents' collection ensured.")
         
+        # 4. Voice Sessions collection indexes
+        await mongodb.db.voice_sessions.create_index("session_id", unique=True)
+        await mongodb.db.voice_sessions.create_index("user_id")
+        await mongodb.db.voice_sessions.create_index("organization_id")
+        logger.info("✅ Indexes on 'voice_sessions' collection ensured.")
+        
     except Exception as exc:
         logger.warning("Failed to create MongoDB indexes: %s. Continuing startup...", str(exc))
 

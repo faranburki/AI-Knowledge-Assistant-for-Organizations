@@ -3,6 +3,7 @@ import asyncio
 import os
 import tempfile
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -67,16 +68,16 @@ class BaseSTTProvider(abc.ABC):
     """Abstract base class for all Speech-to-Text (STT) providers."""
     
     @abc.abstractmethod
-    def transcribe_audio(self, filepath: str) -> str:
-        """Transcribe audio from a file and return the text."""
+    def transcribe_audio(self, audio_source: Any) -> str:
+        """Transcribe audio from a file or file-like object and return the text."""
         pass
 
 class GoogleSTTProvider(BaseSTTProvider):
     """Lightweight STT provider using SpeechRecognition (Google STT)."""
-    def transcribe_audio(self, filepath: str) -> str:
+    def transcribe_audio(self, audio_source: Any) -> str:
         import speech_recognition as sr
         recognizer = sr.Recognizer()
-        with sr.AudioFile(filepath) as source:
+        with sr.AudioFile(audio_source) as source:
             audio_data = recognizer.record(source)
             try:
                 # Using Google Web Speech API for fast, zero-dependency transcription
@@ -101,21 +102,10 @@ async def transcribe_audio_bytes(audio_bytes: bytes) -> str:
     provider = get_stt_provider()
     
     def _transcribe():
-        # Web browsers often record in webm or ogg format.
-        # SpeechRecognition library expects WAV, AIFF, or FLAC.
-        # If the user sends webm, we might need ffmpeg to convert it, but SpeechRecognition
-        # can sometimes read it if the internal format is PCM. We will write it directly
-        # and let the AudioFile class attempt to read it.
-        # NOTE: For a robust system, we would use ffmpeg here to convert to WAV.
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-            tmp.write(audio_bytes)
-            temp_path = tmp.name
-        
-        try:
-            return provider.transcribe_audio(temp_path)
-        finally:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
+        import io
+        # Use an in-memory BytesIO buffer instead of temp files
+        file_obj = io.BytesIO(audio_bytes)
+        return provider.transcribe_audio(file_obj)
 
     text = await asyncio.to_thread(_transcribe)
     return text

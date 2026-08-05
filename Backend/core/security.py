@@ -117,6 +117,47 @@ async def get_current_user(request: Request) -> dict:
         "subscribed_org_ids": user.get("subscribed_org_ids") or [],
     }
 
+async def get_current_user_ws(token: str) -> dict:
+    """Extract current user from token directly for WebSockets."""
+    payload = verify_token(token)
+    
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+    
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+    
+    from Backend.Database.mongodb import mongodb
+    from bson import ObjectId
+    
+    user = await mongodb.db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    
+    role = user.get("role")
+    if not role:
+        role = "org_member" if user.get("organization_id") else "public_user"
+
+    return {
+        "user_id": user_id,
+        "organization_id": user.get("organization_id") or payload.get("org_id"),
+        "email": user.get("email"),
+        "full_name": user.get("full_name"),
+        "is_admin": user.get("is_admin", False),
+        "role": role,
+        "subscribed_org_ids": user.get("subscribed_org_ids") or [],
+    }
+
 
 def build_token_data(user: dict) -> dict:
     """Build JWT claims from a MongoDB user document."""

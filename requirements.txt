@@ -88,3 +88,4 @@ passlib[bcrypt]>=1.7.4
 python-jose[cryptography]>=3.3.0
 pyttsx3==2.90
 SpeechRecognition==3.14.1
+aiortc

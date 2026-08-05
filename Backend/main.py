@@ -5,14 +5,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
+import asyncio
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from Backend.api.routes import router as documents_router
-from Backend.routers import auth, organizations, query, users, voice
+from Backend.routers import (
+    auth,
+    organizations,
+    users,
+    query,
+    voice,
+    voice_sessions,
+    webrtc
+)
 from Backend.Database.mongodb import connect_to_mongo, close_mongo_connection
 from Backend.Database.chroma import connect_to_chroma
+from Backend.core.lifecycle import lifecycle_loop
+from Backend.Services.voice_runtime import runtime_manager
 
 load_dotenv()
 
@@ -50,9 +61,21 @@ async def lifespan(app: FastAPI):
     await connect_to_chroma()
     
     logger.info("Application startup complete")
+    
+    # Start background tasks
+    lifecycle_task = asyncio.create_task(lifecycle_loop())
+    
     yield
     
-    # Shutdown
+    # Shutdown logic
+    logger.info("Waiting for application shutdown.")
+    
+    # Cancel background tasks
+    lifecycle_task.cancel()
+    
+    # Gracefully shut down all active Voice Runtimes
+    await runtime_manager.shutdown_all()
+    
     logger.info("Closing MongoDB connection...")
     await close_mongo_connection()
     logger.info("Application shutdown complete")
@@ -109,5 +132,7 @@ app.include_router(organizations.router, prefix="/orgs", tags=["organizations"])
 app.include_router(query.router, prefix="/query", tags=["query"])
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(voice.router, prefix="/voice", tags=["voice"])
+app.include_router(voice_sessions.router, prefix="/voice-sessions", tags=["Voice Sessions"])
+app.include_router(webrtc.router, prefix="/voice-sessions", tags=["WebRTC Signaling"])
 
 logger.info("All routers registered")
