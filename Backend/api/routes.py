@@ -21,8 +21,8 @@ from Backend.core.security import get_current_user
 from Backend.Database.mongodb import mongodb
 from Backend.Services.embedding_service import (
     delete_document_vectors,
-    save_embeddings_to_qdrant,
-    update_document_status_in_qdrant,
+    save_embeddings_to_chroma,
+    update_document_status_in_chroma,
 )
 from Backend.Services.file_utils import save_file
 from Backend.Services.text_processor import extract_text, split_text
@@ -149,7 +149,7 @@ async def upload_document(
 
         # Step 5 – generate embeddings and upsert into Qdrant
         embedding_model = request.app.state.embedding_model
-        await save_embeddings_to_qdrant(
+        await save_embeddings_to_chroma(
             chunks=chunks,
             metadata={
                 "document_id": doc_id,
@@ -298,7 +298,7 @@ async def update_document_status(
         )
 
         try:
-            update_document_status_in_qdrant(doc_id, body.status)
+            await update_document_status_in_chroma(doc_id, body.status)
         except ValueError as exc:
             raise HTTPException(status_code=500, detail=str(exc))
 
@@ -357,7 +357,7 @@ async def delete_document(
 
         # 2 – delete vectors from Qdrant
         try:
-            delete_document_vectors(doc_id)
+            await delete_document_vectors(doc_id)
         except Exception as exc:
             logger.warning(
                 "Vector deletion failed for doc '%s' (continuing): %s", doc_id, exc

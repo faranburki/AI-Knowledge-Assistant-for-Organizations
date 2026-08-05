@@ -4,27 +4,20 @@ import time
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from groq import Groq
+import asyncio
+import httpx
 
 from Backend.Database.mongodb import mongodb
-from Backend.Database import qdrant
+from Backend.Database import chroma
 from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Groq client — initialised once at module load.
-# The API key is validated; a missing key will log a warning but won't crash
-# the import.  Actual failures surface when a query is made.
+# Local Ollama LLM configuration
 # ---------------------------------------------------------------------------
-_groq_api_key = os.getenv("GROQ_API_KEY")
-if not _groq_api_key:
-    logger.warning("GROQ_API_KEY is not set — LLM calls will fail at runtime.")
-
-groq_client = Groq(api_key=_groq_api_key)
-
-# Default model — llama-3.1 is available on the free Groq tier
-DEFAULT_LLM_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+DEFAULT_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "qwen2:1.5b")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 
 # ---------------------------------------------------------------------------
@@ -36,42 +29,25 @@ def build_retrieval_filter(
     org_ids: Optional[List[str]] = None,
     subscribed_org_ids: Optional[List[str]] = None,
 ):
-    """Build a Qdrant filter based on the querying user's role."""
-    from qdrant_client.http.models import (
-        FieldCondition,
-        Filter,
-        MatchAny,
-        MatchValue,
-    )
+    """Build a ChromaDB filter based on the querying user's role."""
 
     if role == "public_user":
         target_orgs = org_ids if org_ids else (subscribed_org_ids or [])
         if not target_orgs:
             return None
-        return Filter(
-            must=[
-                FieldCondition(
-                    key="organization_id",
-                    match=MatchAny(any=target_orgs),
-                ),
-                FieldCondition(
-                    key="status",
-                    match=MatchValue(value="public"),
-                ),
+        return {
+            "$and": [
+                {"organization_id": {"$in": target_orgs}},
+                {"status": {"$eq": "public"}},
             ]
-        )
+        }
 
     if not org_id:
         return None
 
-    return Filter(
-        must=[
-            FieldCondition(
-                key="organization_id",
-                match=MatchValue(value=org_id),
-            )
-        ]
-    )
+    return {
+        "organization_id": {"$eq": org_id}
+    }
 
 
 async def retrieve_chunks(
@@ -95,49 +71,55 @@ async def retrieve_chunks(
             logger.warning("No valid retrieval scope for role=%s", role)
             return []
 
-        results = qdrant.client.query_points(
-            collection_name=qdrant.COLLECTION_NAME,
-            query=query_vector,
-            query_filter=query_filter,
-            limit=top_k,
-        )
+        def _query():
+            return chroma.collection.query(
+                query_embeddings=[query_vector],
+                n_results=top_k,
+                where=query_filter,
+                include=["metadatas", "documents", "distances"]
+            )
+            
+        results = await asyncio.to_thread(_query)
 
         chunks: List[Dict] = []
-        for hit in results.points:
-            if hit.score >= score_threshold:
-                payload = hit.payload or {}
-                chunks.append(
-                    {
-                        "document_id": payload.get("document_id"),
-                        "chunk_index": payload.get("chunk_index"),
-                        "text": payload.get("chunk_text", ""),
-                        "source_name": payload.get("source_name", "unknown"),
-                        "score": hit.score,
-                    }
-                )
+        if results["ids"] and results["ids"][0]:
+            for i in range(len(results["ids"][0])):
+                distance = results["distances"][0][i]
+                score = 1.0 - distance  # Convert cosine distance to cosine similarity
+                if score >= score_threshold:
+                    payload = results["metadatas"][0][i] or {}
+                    chunk_text = results["documents"][0][i] or ""
+                    chunks.append(
+                        {
+                            "document_id": payload.get("document_id"),
+                            "chunk_index": payload.get("chunk_index"),
+                            "text": chunk_text,
+                            "source_name": payload.get("source_name", "unknown"),
+                            "score": score,
+                        }
+                    )
 
         scope = org_id or org_ids or subscribed_org_ids
         logger.info("Retrieved %d chunks (role=%s, scope=%s)", len(chunks), role, scope)
         return chunks
     except Exception as exc:
-        logger.error("Error retrieving chunks from Qdrant: %s", exc)
+        logger.error("Error retrieving chunks from ChromaDB: %s", exc)
         return []
 
 
 # ---------------------------------------------------------------------------
 # Step 2 — Build a token-budget-aware prompt
 # ---------------------------------------------------------------------------
-def build_prompt(question: str, chunks: List[Dict], token_budget: int = 2000) -> tuple:
-    """Assemble a RAG prompt from retrieved chunks, respecting a token budget.
+def build_prompt(question: str, chunks: List[Dict], token_budget: int = 800) -> tuple:
+    """Assemble a RAG prompt from retrieved chunks, respecting a tighter token budget.
 
     Returns (prompt_text, used_chunks).
     """
     if not chunks:
         prompt_text = (
-            "You are a helpful assistant for an organization's knowledge base.\n"
-            "The user is asking a question, but NO relevant documents or specific context was found in the database (embeddings were not found).\n"
-            "You MUST start your response by explicitly informing the user that no relevant documents or specific context were found in the knowledge base, "
-            "and then you may try to answer their question using your general knowledge, or greet them if they are just saying hello.\n\n"
+            "You are an expert AI Knowledge Agent for the organization. "
+            "The user is asking a question, but NO relevant documents were found.\n"
+            "You MUST state that the information was not found in the documents.\n\n"
             f"User message: {question}\n\n"
             "Response:"
         )
@@ -151,28 +133,25 @@ def build_prompt(question: str, chunks: List[Dict], token_budget: int = 2000) ->
         return prompt_text, [no_context_source]
 
     header = (
-        "You are a helpful assistant for an organization's knowledge base.\n"
-        "Answer the following question. Use the provided context to answer the question as accurately and concisely as possible. "
-        "Cite the sources as [1], [2], etc. where appropriate. "
-        "If the provided context does not contain the answer, you may answer the question using your general knowledge, "
-        "but clearly state that the information was not found in the organization's documents.\n\n"
-        f"Question: {question}\n\n"
+        "You are an expert AI Knowledge Agent. "
+        "Answer the user's question concisely in 1-2 sentences using ONLY the provided context below. "
+        "Do not hallucinate or add extra information. If the context does not contain the answer, clearly state 'I cannot find the answer in the provided documents.'\n\n"
         "Context:\n"
     )
 
     used_chunks: List[Dict] = []
-    body = ""
+    prompt_text = header
     estimated_tokens = len(header.split())
 
     for idx, chunk in enumerate(chunks, start=1):
-        snippet = chunk["text"][:500]  # cap per-chunk length
+        snippet = chunk["text"]  # DO NOT truncate characters; token_budget handles limits
         block = f"\n[{idx}] Source: {chunk['source_name']} (chunk {chunk['chunk_index']}):\n{snippet}\n"
         block_tokens = len(block.split())
 
         if estimated_tokens + block_tokens > token_budget:
             break
 
-        body += block
+        prompt_text += block
         estimated_tokens += block_tokens
         used_chunks.append(
             {
@@ -184,8 +163,7 @@ def build_prompt(question: str, chunks: List[Dict], token_budget: int = 2000) ->
             }
         )
 
-    footer = "\nAnswer (reference sources as [1], [2], etc.):\n"
-    prompt_text = header + body + footer
+    prompt_text += f"\nQuestion: {question}\nAnswer:"
     return prompt_text, used_chunks
 
 
@@ -193,27 +171,31 @@ def build_prompt(question: str, chunks: List[Dict], token_budget: int = 2000) ->
 # Step 3 — Call Groq LLM
 # ---------------------------------------------------------------------------
 async def generate_answer(prompt: str, model: str = DEFAULT_LLM_MODEL) -> tuple:
-    """Send the prompt to Groq and return (answer_text, response_time_ms).
-
-    Uses the correct Groq Python SDK interface:
-        groq_client.chat.completions.create(...)
-        response.choices[0].message.content
-    """
+    """Send the prompt to local Ollama and return (answer_text, response_time_ms)."""
     try:
         t0 = time.time()
-        response = groq_client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1024,
-            temperature=0.2,
-        )
+        async with httpx.AsyncClient() as client:
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "options": {
+                    "temperature": 0.1,
+                    "num_predict": 250,
+                    "stop": ["\n\nQuestion:", "User:", "Question:"]
+                }
+            }
+            response = await client.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=120.0)
+            response.raise_for_status()
+            data = response.json()
+            answer = data.get("message", {}).get("content", "")
+            
         elapsed_ms = int((time.time() - t0) * 1000)
-        answer = response.choices[0].message.content or ""
         logger.info("LLM answer generated in %d ms (model=%s)", elapsed_ms, model)
         return answer, elapsed_ms
     except Exception as exc:
-        logger.error("Groq API call failed: %s", exc)
-        return "Error generating a response. Please try again.", 0
+        logger.error("Ollama API call failed: %s", exc)
+        return "Error generating a response from the local model. Please try again.", 0
 
 
 # ---------------------------------------------------------------------------
@@ -283,8 +265,33 @@ async def handle_query(
     convo_id = conversation_id or f"convo_{str(ObjectId())}"
 
     try:
-        # 1. Embed the question
-        query_vector: List[float] = embedding_model.encode([question])[0].tolist()
+        log_org_id = org_id or (org_ids[0] if org_ids else "")
+        
+        # 0. Check Cache
+        if log_org_id:
+            cached_query = await mongodb.db.queries.find_one(
+                {"organization_id": log_org_id, "question": question, "category": {"$ne": "error"}},
+                sort=[("timestamp", -1)]
+            )
+            if cached_query and cached_query.get("answer"):
+                # We return cache if it's not a generic failure response
+                ans = cached_query["answer"]
+                if "An internal error occurred" not in ans:
+                    logger.info("Cache hit for question: '%s'", question)
+                    return {
+                        "answer": ans,
+                        "sources": cached_query.get("sources", []),
+                        "category": cached_query.get("category", "general"),
+                        "confidence": 0.99,
+                        "response_time_ms": int((time.time() - t0) * 1000),
+                        "conversation_id": convo_id,
+                    }
+
+        # 1. Embed the question asynchronously (Normalized)
+        def _encode():
+            return embedding_model.encode([question], normalize_embeddings=True)[0].tolist()
+            
+        query_vector: List[float] = await asyncio.to_thread(_encode)
 
         # 2. Retrieve chunks (role-aware)
         chunks = await retrieve_chunks(
@@ -293,10 +300,8 @@ async def handle_query(
             org_id=org_id,
             org_ids=org_ids,
             subscribed_org_ids=subscribed_org_ids,
-            top_k=top_k,
+            top_k=3,  # Cap at 3 to aggressively improve CPU response times
         )
-
-        log_org_id = org_id or (org_ids[0] if org_ids else None)
 
         # 3. Classify
         category = "general"
@@ -329,9 +334,17 @@ async def handle_query(
         top_scores = [c["score"] for c in chunks[:3]]
         confidence = round(sum(top_scores) / len(top_scores), 4) if top_scores else 0.0
 
+        # Deduplicate sources for the frontend by source_name
+        unique_sources = []
+        seen_sources = set()
+        for src in used_chunks:
+            if src["source_name"] not in seen_sources:
+                unique_sources.append(src)
+                seen_sources.add(src["source_name"])
+
         return {
             "answer": answer,
-            "sources": used_chunks,
+            "sources": unique_sources,
             "category": category,
             "confidence": confidence,
             "response_time_ms": total_ms,

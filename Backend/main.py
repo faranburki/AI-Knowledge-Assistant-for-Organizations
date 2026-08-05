@@ -10,9 +10,9 @@ from sentence_transformers import SentenceTransformer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from Backend.api.routes import router as documents_router
-from Backend.routers import auth, organizations, query, users
+from Backend.routers import auth, organizations, query, users, voice
 from Backend.Database.mongodb import connect_to_mongo, close_mongo_connection
-from Backend.Database.qdrant import connect_to_qdrant
+from Backend.Database.chroma import connect_to_chroma
 
 load_dotenv()
 
@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Loading embedding model...")
     try:
-        app.state.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        app.state.embedding_model = SentenceTransformer('BAAI/bge-small-en-v1.5')
         logger.info("Embedding model loaded successfully")
     except Exception as e:
         logger.error("Failed to load embedding model: %s", str(e))
@@ -46,8 +46,8 @@ async def lifespan(app: FastAPI):
     logger.info("Connecting to MongoDB...")
     await connect_to_mongo()
     
-    logger.info("Connecting to Qdrant...")
-    await connect_to_qdrant()
+    logger.info("Connecting to ChromaDB...")
+    await connect_to_chroma()
     
     logger.info("Application startup complete")
     yield
@@ -108,5 +108,6 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(organizations.router, prefix="/orgs", tags=["organizations"])
 app.include_router(query.router, prefix="/query", tags=["query"])
 app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(voice.router, prefix="/voice", tags=["voice"])
 
 logger.info("All routers registered")

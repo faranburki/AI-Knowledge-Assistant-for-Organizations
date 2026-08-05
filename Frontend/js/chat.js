@@ -139,9 +139,10 @@ function appendMessage(role, content, extra = '') {
       <div class="msg-avatar">${avatar}</div>
     </div>
     <div class="msg-content">
-      <div class="msg-header">
+      <div class="msg-header" style="display:flex;align-items:center;">
         <span class="fw-medium" style="color:var(--text-primary)">${role === 'user' ? (user.full_name || 'You') : 'AI Assistant'}</span>
-        <span style="font-size:11px;color:var(--text-tertiary);margin-left:4px">${time}</span>
+        ${role === 'assistant' ? `<button class="btn-icon btn-ghost btn-sm" onclick="playVoice(this, \`${encodeURIComponent(content)}\`)" title="Play voice" style="padding:4px; height:auto; color:var(--text-tertiary); margin-left:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>` : ''}
+        <span style="font-size:11px;color:var(--text-tertiary);margin-left:auto">${time}</span>
       </div>
       <div class="msg-body">${formatMarkdown(content)}</div>
       ${extra}
@@ -350,3 +351,186 @@ function toggleChatSidebar() {
     sidebar.classList.toggle('collapsed');
   }
 }
+
+window.activeAudio = null;
+async function playVoice(btn, encodedText) {
+  if (window.activeAudio) {
+    window.activeAudio.pause();
+    window.activeAudio = null;
+  }
+  
+  const text = decodeURIComponent(encodedText);
+  if (!text) return;
+
+  const originalIcon = btn.innerHTML;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0 auto;"></div>';
+  btn.disabled = true;
+
+  try {
+    const blob = await API.generateVoice(text);
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    window.activeAudio = audio;
+    
+    // Change icon to playing state
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+    btn.disabled = false;
+    
+    audio.onended = () => {
+      btn.innerHTML = originalIcon;
+      URL.revokeObjectURL(url);
+    };
+    
+    audio.play();
+  } catch (err) {
+    if (typeof showToast === 'function') showToast("Failed to play voice", "error");
+    btn.innerHTML = originalIcon;
+    btn.disabled = false;
+  }
+}
+
+// ── Push-to-Talk Logic ──
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+
+function setupMic() {
+  const micBtn = document.getElementById('chatMicBtn');
+  if (!micBtn) return;
+  
+  const startRecording = async (e) => {
+    e.preventDefault();
+    if (isRecording) return;
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      
+      mediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) audioChunks.push(event.data);
+      };
+      
+      mediaRecorder.start();
+      isRecording = true;
+      
+      // Visual feedback
+      micBtn.style.background = 'var(--error)';
+      micBtn.style.color = '#fff';
+      micBtn.style.borderColor = 'var(--error)';
+      micBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: pulse 1.5s infinite;"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
+      
+      if (!document.getElementById('mic-pulse-css')) {
+        const style = document.createElement('style');
+        style.id = 'mic-pulse-css';
+        style.innerHTML = `@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }`;
+        document.head.appendChild(style);
+      }
+    } catch (err) {
+      if (typeof showToast === 'function') showToast("Microphone access denied", "error");
+    }
+  };
+
+  const stopRecording = async (e) => {
+    e.preventDefault();
+    if (!isRecording || !mediaRecorder) return;
+    
+    mediaRecorder.stop();
+    isRecording = false;
+    
+    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    
+    micBtn.style.background = 'var(--bg-secondary)';
+    micBtn.style.color = 'var(--text-secondary)';
+    micBtn.style.borderColor = 'var(--border-primary)';
+    micBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:var(--accent);margin:0 auto"></div>';
+    
+    mediaRecorder.onstop = async () => {
+      const webmBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      try {
+        const wavBlob = await encodeBlobToWav(webmBlob);
+        const response = await API.transcribeAudio(wavBlob);
+        if (response.text && response.text.trim().length > 0) {
+          const input = document.getElementById('chatInput');
+          input.value = (input.value ? input.value + ' ' : '') + response.text;
+          input.focus();
+          document.getElementById('chatSendBtn').disabled = false;
+          sendQuestion();
+        } else {
+            if (typeof showToast === 'function') showToast("Could not understand audio", "error");
+        }
+      } catch (err) {
+        if (typeof showToast === 'function') showToast("Transcription failed", "error");
+      } finally {
+        micBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
+      }
+    };
+  };
+
+  micBtn.addEventListener('mousedown', startRecording);
+  micBtn.addEventListener('touchstart', startRecording, { passive: false });
+  
+  micBtn.addEventListener('mouseup', stopRecording);
+  micBtn.addEventListener('mouseleave', stopRecording);
+  micBtn.addEventListener('touchend', stopRecording, { passive: false });
+}
+
+// Convert WebM (Opus) to PCM WAV for Python SpeechRecognition
+async function encodeBlobToWav(blob) {
+  const arrayBuffer = await blob.arrayBuffer();
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  
+  const numOfChan = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const length = audioBuffer.length * numOfChan * 2;
+  const buffer = new ArrayBuffer(44 + length);
+  const view = new DataView(buffer);
+  
+  const writeString = (view, offset, string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+  
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + length, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, numOfChan, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numOfChan * 2, true);
+  view.setUint16(32, numOfChan * 2, true);
+  view.setUint16(34, 16, true); // 16 bit
+  writeString(view, 36, 'data');
+  view.setUint32(40, length, true);
+  
+  const offset = 44;
+  let pos = offset;
+  
+  if (numOfChan === 2) {
+      const left = audioBuffer.getChannelData(0);
+      const right = audioBuffer.getChannelData(1);
+      for (let i = 0; i < left.length; i++) {
+          let s = Math.max(-1, Math.min(1, left[i]));
+          view.setInt16(pos, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+          pos += 2;
+          s = Math.max(-1, Math.min(1, right[i]));
+          view.setInt16(pos, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+          pos += 2;
+      }
+  } else {
+      const channel = audioBuffer.getChannelData(0);
+      for (let i = 0; i < channel.length; i++) {
+          let s = Math.max(-1, Math.min(1, channel[i]));
+          view.setInt16(pos, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+          pos += 2;
+      }
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+// Call on load
+setTimeout(setupMic, 100);

@@ -162,27 +162,59 @@ def extract_text(file_path):
         logger.exception("Unexpected extraction error for %s", file_path)
         raise ValueError("Unable to extract text from the uploaded file.") from exc
 
+    import re
+    # Clean up excessive newlines (e.g. \n\n\n -> \n\n)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    # Merge dangling prices like "Beef Biryani\n\nPKR 780" -> "Beef Biryani - PKR 780"
+    text = re.sub(r'\n+(?=PKR\s*\d)', ' - ', text)
+
     return text
 
 
-def split_text(text, chunk_size=500, overlap=50):
-    """Split text into overlapping chunks for embedding and RAG."""
+def split_text(text, chunk_size=1000, overlap=200):
+    """Split text into overlapping chunks, respecting paragraphs and sentences."""
     if not text or not text.strip():
         return []
 
-    words = text.split()
+    text = text.replace('\r\n', '\n')
     chunks = []
     start = 0
-
-    while start < len(words):
-        end = min(start + chunk_size, len(words))
-        chunk = " ".join(words[start:end]).strip()
+    text_len = len(text)
+    
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+        
+        # Backtrack to a clean boundary if not at the end
+        if end < text_len:
+            last_newline = text.rfind('\n', start, end)
+            if last_newline != -1 and last_newline > start + chunk_size // 2:
+                end = last_newline + 1
+            else:
+                last_period = text.rfind('. ', start, end)
+                if last_period != -1 and last_period > start + chunk_size // 2:
+                    end = last_period + 2
+                else:
+                    last_space = text.rfind(' ', start, end)
+                    if last_space != -1 and last_space > start:
+                        end = last_space + 1
+                        
+        chunk = text[start:end].strip()
         if chunk:
             chunks.append(chunk)
-        if end >= len(words):
+            
+        if end >= text_len:
             break
+            
         start = end - overlap
         if start < 0:
             start = 0
-
+        else:
+            next_newline = text.find('\n', start, end)
+            if next_newline != -1 and next_newline < end - 50:
+                start = next_newline + 1
+            else:
+                next_space = text.find(' ', start, end)
+                if next_space != -1:
+                    start = next_space + 1
+                    
     return chunks

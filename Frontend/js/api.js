@@ -164,4 +164,31 @@ const API = {
 
   // ── Health ────────────────────────────────────────────────
   health() { return this._req('GET', '/health'); },
+
+  // ── Voice ─────────────────────────────────────────────────
+  generateVoice(text) {
+    const url = (API_BASE || '') + '/voice/generate';
+    const headers = { 'Content-Type': 'application/json' };
+    if (this._token()) headers['Authorization'] = 'Bearer ' + this._token();
+    return fetch(url, { method: 'POST', headers, body: JSON.stringify({ text }) })
+      .then(res => {
+        if (!res.ok) throw new Error("Voice generation failed");
+        return res.blob();
+      });
+  },
+
+  transcribeAudio(audioBlob) {
+    const url = (API_BASE || '') + '/voice/transcribe';
+    const headers = {};
+    if (this._token()) headers['Authorization'] = 'Bearer ' + this._token();
+    
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'mic.wav');
+
+    return fetch(url, { method: 'POST', headers, body: formData })
+      .then(res => {
+        if (!res.ok) throw new Error("Speech transcription failed");
+        return res.json();
+      });
+  }
 };

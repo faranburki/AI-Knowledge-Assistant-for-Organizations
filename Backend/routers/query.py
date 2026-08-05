@@ -26,7 +26,7 @@ class QueryRequest(BaseModel):
     """Request schema for asking a question."""
     question: str
     conversation_id: Optional[str] = None
-    top_k: Optional[int] = 8
+    top_k: Optional[int] = 4
     org_ids: Optional[List[str]] = None  # public users: subset of subscribed orgs
 
 

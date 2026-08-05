@@ -54,7 +54,7 @@ python-dotenv==1.2.2
 python-multipart==0.0.22
 python-pptx==1.0.2
 PyYAML==6.0.3
-qdrant-client==1.17.1
+chromadb>=0.4.24
 regex==2026.2.28
 rich==14.3.3
 rich-toolkit==0.19.7
@@ -86,4 +86,5 @@ xlsxwriter==3.2.9
 bcrypt==4.0.1
 passlib[bcrypt]>=1.7.4
 python-jose[cryptography]>=3.3.0
-groq>=0.4.1
+pyttsx3==2.90
+SpeechRecognition==3.14.1
